@@ -1,0 +1,661 @@
+# SDVAutumn2022
+# commands.py
+# Written by blueberry et al., 2022
+# https://github.com/StardewValleyDiscord/SDVAutumn2022
+
+import datetime
+import random
+from importlib import reload
+from math import ceil, floor
+from typing import Optional, List, Any, Dict
+
+from discord import Reaction, User, Message, Emoji, utils, Interaction, Role, Guild, ButtonStyle, Member, TextChannel, \
+    AllowedMentions, Embed
+from discord.ext import commands
+from discord.ext.commands import Cog, Context, BucketType, UserConverter, BadArgument, CommandOnCooldown, Bot, \
+    MissingRequiredArgument
+from discord.ui import View, Button
+
+from src import config, strings, db
+from src.config import FISHING_SCOREBOARD, ROLE_HELPER, ROLE_ADMIN, FISHING_BONUS_VALUE, FISHING_BONUS_CHANCE, \
+    FISHING_HIGH_VALUE
+from src.utils import check_roles, requires_admin, get_guild_message
+
+"""
+Contents:
+    SCommands
+        Classes
+            SResponse
+        Init
+        Command utils
+        Default user commands
+        Admin commands
+        Command implementations
+        Event implementations
+        Event listeners
+    Discord.py boilerplate
+"""
+
+
+# Commands
+
+
+class SCommands(Cog, name=config.COG_COMMANDS):
+    # Classes
+
+    class SShopView(View):
+        """
+        Component view for a button-based shop menu to exchange balance for bonuses.
+        """
+
+        ROW_LEN: int = 4
+
+        def __init__(self, guild: Guild, bot: Bot):
+            super().__init__(timeout=None)
+
+            # Add shop buttons for up to 10 roles
+            for (i, role_data) in enumerate(config.SHOP_ROLE_LIST):
+                role_id: int = role_data.get("id")
+                role: Role = guild.get_role(role_id)
+                button: SCommands.SShopButton = SCommands.SShopButton(
+                    row=int(i / SCommands.SShopView.ROW_LEN),
+                    label=strings.get("shop_role_format").format(role.name, role_data.get("cost")),
+                    custom_id=role_data.get("name"),
+                    emoji=utils.get(bot.emojis, name=strings.get(f"emoji_{role_data.get('name')}")))
+                self.add_item(item=button)
+
+        async def interaction_check(self, interaction: Interaction, /) -> bool:
+            """
+            Override.
+
+            Check before allowing a shop view interaction.
+            """
+            return True
+
+    class SShopButton(Button):
+        """
+        Component button for a shop offer.
+        """
+        def __init__(self, custom_id: str, row: int, label: str, emoji: Emoji):
+            super().__init__(
+                style=ButtonStyle.blurple,
+                label=label,
+                emoji=emoji,
+                row=row,
+                custom_id=custom_id)
+
+        async def callback(self, interaction: Interaction) -> Any:
+            """
+            Override.
+            Handles interactions with shop buttons.
+            """
+            msg: str = None
+            cost: int = 0
+            balance_current: int = db.get_balance_for(user_id=interaction.user.id)
+
+            # Handle different rows of buttons with different behaviours
+            if self._is_role_button():
+                cost = self._get_role_data().get("cost")
+                if cost <= balance_current:
+                    msg = await self._do_purchase_role(member=interaction.user)
+
+            if not msg:
+                # If no reply message is set, assume the user couldn't afford the shop offer
+                msg = strings.random("shop_responses_poor").format(cost - balance_current)
+            elif cost > 0:
+                # Deduct cost from user's balance
+                db.set_balance_for(user_id=interaction.user.id, value=balance_current - cost)
+                msg_purchased: str = strings.random("shop_responses_purchase").format(cost, balance_current - cost)
+                msg += f"\n{msg_purchased}"
+
+            # Send user-only response depending on purchase and success
+            await interaction.response.send_message(content=msg, ephemeral=True)
+
+        async def _do_purchase_role(self, member: Member) -> str:
+            """
+            Removes all shop roles from a user, then awards them the shop role of their choosing.
+            Does not check or deduct user's balance.
+            :param member: User to award role to.
+            :return: Confirmation message.
+            """
+            role: Role = utils.get(member.guild.roles, id=self._get_role_data().get("id"))
+            log_reason: str = strings.get("log_role_purchase")
+
+            # Remove other shop roles
+            await member.remove_roles(*[role_data.get("id") for role_data in config.SHOP_ROLE_LIST], reason=log_reason)
+            # Add selected shop role, as well as generic event role
+            await member.add_roles(*[role.id, config.ROLE_EVENT], reason=log_reason)
+
+            msg_index: int = self._get_role_data().get("response_index")
+            msg: str = strings.get("shop_responses_purchase_role")[msg_index]
+            return msg
+
+        def _get_role_data(self) -> dict:
+            return next(rd for rd in config.SHOP_ROLE_LIST if rd.get("name") == self.custom_id)
+
+        def _is_role_button(self) -> bool:
+            return self.row < len(config.SHOP_ROLE_LIST) / SCommands.SShopView.ROW_LEN
+
+    class SResponse:
+        """
+        Container for response messages and balance values from using a command.
+        """
+        def __init__(self, msg: str, value: int):
+            self.msg: Optional[str] = msg
+            """Response message string to be posted as a reply."""
+            self.value: int = value
+            """Value added to user's balance from within command."""
+
+    # Init
+
+    def __init__(self, bot: Bot):
+        super().__init__()
+        self.bot = bot
+        self.fishing_session: Dict[int, List[int]] = {}
+
+    # Command utils
+
+    def _add_balance(self, user_id: int, value: int) -> int:
+        balance_current: int = db.get_balance_for(user_id=user_id)
+        balance_current = db.set_balance_for(user_id=user_id, value=balance_current + value)
+        if value > 0:
+            self._add_earnings(value=value)
+        return balance_current
+
+    def _add_earnings(self, value: int) -> int:
+        earnings_current: int = db.get_global_earnings()
+        if value > 0:
+            earnings_current = db.set_global_earnings(value=earnings_current + value)
+        return earnings_current
+
+    # Default user commands
+
+    @commands.command(name=strings.get("command_name_wheel"))
+    @commands.cooldown(rate=config.WHEEL_USE_RATE, per=config.WHEEL_USE_PER, type=BucketType.user)
+    async def cmd_wheel(self, ctx: Context, value: int) -> None:
+        response: SCommands.SResponse = self._do_wheel(user_id=ctx.author.id, value=value)
+        if response.value > 0:
+            response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
+        await ctx.reply(content=response.msg)
+
+    @commands.command(name=strings.get("command_name_fortune"))
+    @commands.cooldown(rate=config.FORTUNE_USE_RATE, per=config.FORTUNE_USE_PER, type=BucketType.user)
+    async def cmd_fortune(self, ctx: Context) -> None:
+        response: SCommands.SResponse = self._do_fortune_command(user_id=ctx.author.id)
+        if response.value > 0:
+            response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
+        await ctx.reply(content=response.msg)
+
+    @commands.command(name=strings.get("command_name_strength"))
+    @commands.cooldown(rate=config.STRENGTH_USE_RATE, per=config.STRENGTH_USE_PER, type=BucketType.user)
+    async def cmd_strength(self, ctx: Context) -> None:
+        response: SCommands.SResponse = self._do_strength(user_id=ctx.author.id)
+        if response.value > 0:
+            response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
+        await ctx.reply(content=response.msg)
+
+    @commands.command(name=strings.get("command_name_balance_get"))
+    async def cmd_balance_get(self, ctx: Context, query: str = None) -> None:
+        msg: str
+        try:
+            if not query:
+                query = ctx.author.id
+            user: User = await UserConverter().convert(
+                ctx=ctx,
+                argument=str(query).strip())
+            response: SCommands.SResponse = self._do_balance_get(user_id=user.id)
+            msg = response.msg
+        except BadArgument:
+            msg = strings.get("commands_error_user")
+        await ctx.reply(content=msg)
+
+    # Admin commands
+
+    @commands.command(name=strings.get("command_name_balance_add"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_balance_set(self, ctx: Context, value: int, *, query: str = None) -> None:
+        """
+        Add a value to a given user's balance, or to the author's balance if no user query is provided.
+
+        Negative values will be deducted from their balance.
+        :param ctx:
+        :param query: ID, mention, or name of user to set balance for.
+        :param value: Value to be added to balance.
+        """
+        msg: str
+        try:
+            if not query:
+                query = ctx.author.id
+            user: User = await UserConverter().convert(
+                ctx=ctx,
+                argument=str(query).strip())
+            response: SCommands.SResponse = self._do_balance_set(user_from=ctx.author, user_to=user, value=value)
+            msg = response.msg
+        except BadArgument:
+            msg = strings.get("commands_error_user")
+        await ctx.reply(content=msg)
+
+    @commands.command(name=strings.get("command_name_earnings_add"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_earnings_set(self, ctx: Context, value: int):
+        earnings: int = self._add_earnings(value=value)
+        msg: str = strings.get("commands_response_earnings_add").format(earnings, f"+{value}" if value >= 0 else value)
+        await ctx.reply(content=msg)
+
+    @commands.command(name=strings.get("command_name_sync"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_sync(self, message: Message) -> None:
+        await self.bot.sync_guild(message.guild)
+        await message.reply(content=strings.get("commands_response_sync"))
+
+    @commands.command(name=strings.get("command_name_reload"), aliases=["z"], hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_reload(self, ctx: Context) -> None:
+        """
+        Reloads the commands extension, reapplying code changes and reloading the strings data file.
+        """
+        print(strings.get("log_admin_reload").format(
+            ctx.author.name,
+            ctx.author.discriminator,
+            ctx.author.id))
+        await self.bot.reload_extension(name=config.PACKAGE_COMMANDS)
+        await ctx.message.add_reaction(strings.emoji_confirm)
+
+    @commands.command(name=strings.get("command_name_string"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_test_string(self, ctx: Context, string: str) -> None:
+        """
+        Test a given string without formatting.
+        :param ctx:
+        :param string: Key of string in strings data file.
+        """
+        msg: str = strings.get(string)
+        await ctx.reply(content=strings.get("commands_response_str").format(string, msg)
+                        if msg
+                        else strings.get("error_string_not_found").format(string))
+
+    @commands.command(name=strings.get("command_name_emoji"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_test_emoji(self, ctx: Context) -> None:
+        """
+        Test emoji availability and visibility.
+        :param ctx:
+        """
+        msg: str = "\n".join([strings.get("commands_response_emoji_format").format(
+            utils.get(self.bot.emojis, name=strings.get(e)),
+            strings.get(e),
+            e)
+            for e in strings.get("emoji_list")])
+        await ctx.reply(content=strings.get("commands_response_emoji").format(msg))
+
+    @commands.command(name=strings.get("command_name_roles"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_test_roles(self, ctx: Context) -> None:
+        """
+        Test role availability and visibility.
+        :param ctx:
+        """
+        msg: str = "\n".join([strings.get("commands_response_roles_format").format(
+            utils.get(self.bot.emojis, name=strings.get(f"emoji_{rd.get('name')}")),
+            ctx.guild.get_role(rd.get("id")).mention,
+            rd.get("name"),
+            rd.get("cost"))
+            for rd in config.SHOP_ROLE_LIST])
+        await ctx.reply(content=strings.get("commands_response_roles").format(msg))
+
+    @commands.command(name=strings.get("command_name_mesage_send"))
+    @commands.check(requires_admin)
+    async def cmd_send_message(self, ctx: Context, channel_id: int, *, content: str) -> None:
+        """
+        Sends a message in a given channel.
+        :param ctx:
+        :param channel_id: Discord channel ID to send a message in.
+        :param content: Message content to send.
+        :return:
+        """
+        if not content:
+            content = " "
+        content = content[:2000]
+        channel: TextChannel = self.bot.get_channel(channel_id)
+        if content and channel:
+            message: Message = await channel.send(content=content)
+            msg = strings.get("commands_response_send_success").format(
+                channel.mention,
+                message.jump_url)
+        else:
+            msg = strings.get("commands_response_send_failure")
+        await ctx.reply(content=msg)
+
+    @commands.command(name=strings.get("command_name_message_edit"))
+    @commands.check(requires_admin)
+    async def cmd_edit_message(self, ctx: Context, message_id: int, *, content: str) -> None:
+        """
+        Edits a message in the current guild.
+        :param ctx:
+        :param message_id: Discord message ID to edit.
+        :param content: Message content to use.
+        """
+        if not content:
+            content = " "
+        content = content[:2000]
+        msg: str
+        message: Message = await get_guild_message(guild=ctx.guild, message_id=message_id)
+        if content and message:
+            await message.edit(content=content, embeds=message.embeds)
+            msg = strings.get("commands_response_edit_success").format(
+                message.channel.mention,
+                message.jump_url)
+        else:
+            msg = strings.get("commands_response_edit_failure")
+        await ctx.reply(content=msg)
+
+    @commands.command(name=strings.get("command_name_shop_update"))
+    @commands.check(requires_admin)
+    async def cmd_update_shop(self, ctx: Context) -> None:
+        """
+        Generates and sends persistent Shop message in the configured channel.
+        """
+        msg: str = await self._do_update_shop(ctx=ctx)
+        await ctx.reply(content=msg)
+
+    # Command implementations
+
+    def _do_fortune_command(self, user_id: int) -> SResponse:
+        """
+        ???
+        :param user_id: Discord user ID for a given user.
+        """
+        response: str = ""
+        emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_fortune"))
+        msg: str = f"{emoji}\t{response}"
+        response: SCommands.SResponse = SCommands.SResponse(msg=msg, value=config.FORTUNE_USE_VALUE)
+        return response
+
+    def _do_strength(self, user_id: int) -> SResponse:
+        """
+        Generate a message for a strength-test scenario and add value to user's balance.
+        :param user_id: Discord user ID for a given user.
+        """
+        # Outcomes set is in ascending order, from the lowest value at 0 to the highest value at len
+        outcomes: List[str] = strings.get("strength_responses_score")
+        outcome_index: int = random.randint(0, len(outcomes))
+        outcome_value: int = max(1, (floor(ceil(outcome_index) / len(outcomes) * config.STRENGTH_MAX_VALUE)))
+
+        is_weak: bool = outcome_index == 0
+        is_strong: bool = outcome_index == len(outcomes) - 1
+
+        # Add value of outcome as a ratio of possible outcomes earned by this user to their balance
+        balance_bonus: int = config.STRENGTH_BONUS_VALUE if is_weak or is_strong else 0
+        balance_earned: int = outcome_value + balance_bonus
+        self._add_balance(user_id=user_id, value=balance_earned)
+
+        response: str = strings.get("strength_response_format").format(
+            strings.random("strength_responses_start"),
+            strings.random("strength_responses_hit"),
+            strings.emoji_explosion,
+            strings.random("strength_responses_end"),
+            outcomes[outcome_index]
+        )
+        emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_strength"))
+        msg: str = f"{emoji}\t{response}"
+        if is_weak:
+            msg += f"\n{strings.random('strength_responses_weak')}"
+        elif is_strong:
+            msg += f"\n{strings.random('strength_responses_strong')}"
+
+        return SCommands.SResponse(msg=msg, value=balance_earned)
+
+    def _do_wheel(self, user_id: int, value: int) -> SResponse:
+        random_range: int = 100
+        random_result: int = random.randint(0, random_range)
+        is_win: bool = random_result < random_range * config.WHEEL_WIN_CHANCE
+        is_set_a: bool = random_result % 2 == 0
+
+        # Add or remove from the user's balance
+        balance_earned: int = value * (1 if is_win else -1)
+        self._add_balance(user_id=user_id, value=balance_earned)
+
+        response_key: str = "wheel_responses_win_a" if is_win and is_set_a \
+            else "wheel_responses_win_b" if is_win and not is_set_a \
+            else "wheel_responses_lose_a" if not is_win and is_set_a \
+            else "wheel_responses_win_b"
+        response: str = strings.random(response_key)
+        emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_wheel"))
+        msg: str = f"{emoji}\t{response}"
+
+        return SCommands.SResponse(msg=msg, value=balance_earned)
+
+    def _do_balance_get(self, user_id: int) -> SResponse:
+        """
+        Gets a user's balance.
+        :param user_id: Discord user ID for a given user.
+        """
+        balance: int = db.get_balance_for(user_id=user_id)
+        msg_balance_key: str = "balance_responses_none" if balance < 1 \
+            else "balance_responses_one" if balance == 1 \
+            else "balance_responses_many"
+        msg: str = strings.random(msg_balance_key).format(balance)
+        return SCommands.SResponse(msg=msg, value=balance)
+
+    def _do_balance_set(self, user_from: User, user_to: User, value: int) -> SResponse:
+        """
+        Sets balance for a user.
+        :param user_from: User donating balance.
+        :param user_to: Discord user ID for a given user.
+        :param value: Value to be added to user's balance.
+        """
+        # Admin users will not be deducted their balance
+        is_admin = check_roles(user=user_from, role_ids=[ROLE_ADMIN])
+        balance: int = db.get_balance_for(user_id=user_to.id)
+        balance_donated: int = min(balance, value) if not is_admin else value
+        msg_balance_key: str = "balance_responses_none" if balance_donated < 1 \
+            else "balance_responses_donated"
+        msg: str = strings.random(msg_balance_key).format(balance, user_to.mention)
+        # Add balance to target user
+        self._add_balance(user_id=user_to.id, value=balance_donated)
+        if not is_admin:
+            # Deduct balance from self user
+            self._add_balance(user_id=user_from.id, value=-balance_donated)
+        return SCommands.SResponse(msg=msg, value=value)
+
+    async def _do_update_shop(self, ctx: Context) -> str:
+        message_id: int = db.get_shop_message_id()
+        emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
+        msg_roles: str = "\n".join([strings.get("message_roles_format").format(
+            utils.get(self.bot.emojis, name=strings.get(f"emoji_{role_data.get('name')}")),
+            ctx.guild.get_role(role_data.get("id")).mention,
+            role_data.get("cost")
+        ) for role_data in config.SHOP_ROLE_LIST])
+        msg: str
+        shop_title: str = strings.get("message_shop_title")
+        shop_body: str = strings.get("message_shop_body").format(msg_roles, emoji)
+        embed: Embed = Embed(
+            colour=ctx.guild.get_member(self.bot.user.id).colour,
+            title=shop_title,
+            description=shop_body)
+        embed.set_thumbnail(url=emoji.url)
+        view: View = SCommands.SShopView(guild=ctx.guild, bot=self.bot)
+        channel: TextChannel = self.bot.get_channel(config.CHANNEL_SHOP)
+        message: Message
+        if message_id:
+            message = await channel.get_partial_message(message_id).edit(content=None, embed=embed, view=view)
+            msg = strings.get("commands_response_edit_success").format(
+                message.channel.mention,
+                message.jump_url)
+        else:
+            message = await channel.send(content=None, embed=embed, view=view)
+            db.set_shop_message_id(message_id=message.id)
+            msg = strings.get("commands_response_send_success").format(
+                channel.mention,
+                message.jump_url)
+        return msg
+
+    # Event implementations
+
+    async def _do_verification(self, reaction: Reaction, user: User) -> Optional[str]:
+        """
+        Staff reactions to posts with attachments in the submissions channel will add to the author's balance.
+        :param reaction: Reaction instance for a given emoji on the message.
+        :param user: User reacting to the message.
+        """
+        if not user.bot and check_roles(user=reaction.message.author, role_ids=[ROLE_ADMIN, ROLE_HELPER]):
+            num_attachments: int = len(reaction.message.attachments)
+            if num_attachments > 0:
+                is_art: bool = reaction.message.channel.id == config.CHANNEL_ART
+                balance_earned: int = config.SUBMISSION_ART_VALUE if is_art else config.SUBMISSION_FOOD_VALUE
+                balance_earned *= num_attachments
+                self._add_balance(user_id=user.id, value=balance_earned)
+                msg: str = strings.random("submission_responses_art" if is_art else "submission_responses_food").format(balance_earned)
+                return msg
+
+    async def _do_fishing(self, reaction: Reaction, user: User) -> Optional[SResponse]:
+        """
+        Adds to a user's balance some value based on the fish emoji in a message they reacted to.
+        :param reaction: Reaction instance for a given emoji on the message.
+        :param user: User reacting to the message.
+        """
+        # TODO: Prevent users adding multiple reactions to the same message to cheat their balance.
+        response: Optional[SCommands.SResponse] = None
+
+        # Check fishing session to prevent users adding multiple reactions to the same message to cheat their balance
+        fishing_user: List[int] = self.fishing_session.get(user.id, [])
+        if not user.bot and check_roles(user=reaction.message.author, role_ids=[ROLE_ADMIN, ROLE_HELPER]) \
+                and reaction.message.id not in fishing_user:
+            msg: str
+            balance_earned: int = 0
+            balance_bonus: int = 0
+
+            # Save interaction to fishing session
+            fishing_user.append(reaction.message.id)
+            self.fishing_session[user.id] = fishing_user
+
+            # Check if catch period has expired, converting to timezone-unaware times
+            time_now = datetime.datetime.now(tz=datetime.timezone.utc)
+            time_msg = reaction.message.created_at
+            time_period = datetime.timedelta(seconds=config.FISHING_DURATION_SECONDS)
+            time_delta = time_now - time_msg
+            if time_delta > time_period:
+                msg = strings.random("fishing_responses_timeout")
+            else:
+                # Sum the value of fish caught in this message
+                fish_caught: List[int] = [FISHING_SCOREBOARD[key] * reaction.message.content.count(key)
+                                          for key in FISHING_SCOREBOARD.keys()]
+                fish_value: int = sum(fish_caught)
+                is_catch: bool = fish_value > 0
+
+                if is_catch:
+                    # Add value of fish caught by this user to their balance
+                    random_range: int = 100
+                    random_result: int = random.randint(0, random_range)
+                    if random_result < FISHING_BONUS_CHANCE * random_range:
+                        balance_bonus = FISHING_BONUS_VALUE
+                    balance_earned = fish_value + balance_bonus
+                    self._add_balance(user_id=user.id, value=balance_earned)
+
+                # Generate a reply message based on number or value of fish caught
+                response_key: str = "fishing_responses_none" if not is_catch \
+                    else "fishing_responses_value" if fish_value >= FISHING_HIGH_VALUE \
+                    else "fishing_responses_one" if len([count for count in fish_caught if count > 0]) == 1 \
+                    else "fishing_responses_many"
+                msg = strings.random(response_key)
+                if balance_bonus > 0:
+                    msg += f"\n{strings.random('fishing_responses_bonus')}"
+
+            emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_fishing"))
+            msg = f"{emoji}{user.mention}\t{msg}"
+            response = SCommands.SResponse(msg=msg, value=balance_earned)
+
+        return response
+
+    async def _do_fortune_message(self, message: Message) -> Optional[SResponse]:
+        """
+        Generate a message as a reply to any users asking a generic question in visible text channels.
+        :param message: Discord message to parse and create a reply to.
+        """
+        # Ignore messages sent outside allowed channels
+        if message.channel.id not in config.CHANNEL_COMMANDS:
+            return
+
+        msg: str
+        response: Optional[SCommands.SResponse] = None
+        # Find questions in the message
+        qi: int
+        try:
+            qi = message.content.index("?")
+        except ValueError:
+            return
+        # Flatten out the question into lowercase chars for some simple stupid seed
+        question: str = message.content[:qi]
+        chars: str = "".join([c for c in question if c.isalnum()]).lower() if question else None
+        # Ignore questions expecting a detailed answer
+        if chars and all([not chars.startswith(s) for s in ["why", "who", "what", "where", "how"]]):
+            # We skip the usual strings random call to use a random seeded by the question
+            response: str = random.Random(chars).choice(strings.get("fortune_responses"))
+            emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_fortune"))
+            msg = f"{emoji}\t{response}"
+            response = SCommands.SResponse(msg=msg, value=0)
+        return response
+
+    # Event listeners
+
+    async def on_message(self, message: Message) -> None:
+        # Do fortune teller responses on messages
+        response: Optional[SCommands.SResponse] = await self._do_fortune_message(message=message)
+        if response:
+            await message.reply(content=response.msg)
+
+    async def on_reaction_add(self, reaction: Reaction, user: User) -> None:
+        # Do staff verification on submissions
+        msg: str = await self._do_verification(reaction=reaction, user=user)
+        if msg:
+            await reaction.message.add_reaction(strings.emoji_confirm)
+            emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_submissions"))
+            msg = f"{emoji}\t{msg}"
+            await reaction.message.reply(content=msg)
+            return
+
+        # Do fishing responses on staff messages
+        response: Optional[SCommands.SResponse] = await self._do_fishing(reaction=reaction, user=user)
+        if response:
+            channel: TextChannel = self.bot.get_channel(config.CHANNEL_FISHING)
+            if response.value > 0:
+                response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
+            await channel.send(content=response.msg, allowed_mentions=AllowedMentions(users=True))
+
+    async def on_command_error(self, ctx: Context, error: Exception) -> None:
+        cmd: str = ctx.command.name
+        msg: str = None
+        if ctx.command is None:
+            msg = strings.get("error_command_not_found")
+        else:
+            # Makes perfect sense
+            cmd_internal_name: str = [s for s in strings.get("command_list") if strings.get(s) == cmd][0].split("_", 2)[-1]
+            if isinstance(error, CommandOnCooldown):
+                msg = strings.random(f"{cmd_internal_name}_responses_cooldown")
+            if isinstance(error, MissingRequiredArgument):
+                msg = strings.random(f"{cmd_internal_name}_responses_params")
+            emoji_name: str = strings.get(f"emoji_{cmd_internal_name}")
+            emoji: Emoji = utils.get(self.bot.emojis, name=emoji_name)
+            if msg and emoji:
+                msg = f"{emoji}\t{msg}"
+        if msg:
+            await ctx.reply(content=msg)
+
+
+# Discord.py boilerplate
+
+
+async def setup(bot: Bot):
+    # Add cog
+    cog: SCommands = SCommands(bot=bot)
+    await bot.add_cog(cog)
+
+    # Add event listeners
+    bot.add_listener(cog.on_message, name="on_message")
+    bot.add_listener(cog.on_reaction_add, name="on_reaction_add")
+    bot.add_listener(cog.on_command_error, name="on_command_error")
+
+    # Load data
+    bot.reload_strings()
+    reload(strings)
+    reload(utils)

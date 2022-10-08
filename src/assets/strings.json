@@ -1,0 +1,402 @@
+{
+  "client_name": "SDVAutumn2022",
+  "client_description": "Stardew Valley Discord 2022 Autumn event bot",
+  "client_login": "Logged in as {0}#{1} ({2})",
+
+  "commands_response_sync": "Commands are synced.",
+  "commands_response_strings": "Strings are reloaded.",
+  "commands_response_commands": "Commands are reloaded.",
+  "commands_response_earnings_add": "Total earnings are now {0} ({1})",
+  "commands_response_send_success": "Sent message in {0}:\n{1}",
+  "commands_response_send_failure": "Couldn't send that message.",
+  "commands_response_edit_success": "Edited message in {0}:\n{1}",
+  "commands_response_edit_failure": "Couldn't edit that message.",
+  "commands_response_emoji": "**Preview  —  Name  —  Key**\n{0}",
+  "commands_response_emoji_format": "{0}\t:{1}:\t{2}",
+  "commands_response_roles": "**Emoji  —  Role  —  Name  —  Cost**\n{0}",
+  "commands_response_roles_format": "{0}\t{1}\t{2} — {3} Star Tokens",
+  "commands_response_str": "{0}:\t{1}",
+
+  "command_list": [
+    "command_name_wheel",
+    "command_name_fortune",
+    "command_name_strength",
+    "command_name_balance_get",
+    "command_name_balance_add",
+    "command_name_earnings_add",
+    "command_name_message_send",
+    "command_name_message_edit",
+    "command_name_shop_update",
+    "command_name_string",
+    "command_name_emoji",
+    "command_name_roles",
+    "command_name_reload",
+    "command_name_sync"
+  ],
+
+  "command_name_wheel": "wheel",
+  "command_name_fortune": "fortune",
+  "command_name_strength": "strength",
+  "command_name_balance_get": "tokens",
+  "command_name_balance_add": "donate",
+  "command_name_earnings_add": "total_earnings",
+  "command_name_message_send": "send",
+  "command_name_message_edit": "edit",
+  "command_name_shop_update": "shop",
+  "command_name_string": "str",
+  "command_name_emoji": "emoji",
+  "command_name_roles": "roles",
+  "command_name_reload": "reload",
+  "command_name_sync": "sync",
+
+  "log_admin_reload": "Reloading commands. [{0}#{1} ({2})]",
+  "log_role_purchase": "Roles were edited on shop purchase.",
+
+  "error_not_implemented": "Not yet implemented.",
+  "error_command_not_found": "I don't know that command!",
+  "error_roles_not_found": "You need one of these {1} to use this command: {0}",
+  "error_user_not_found": "Couldn't find a user for '{0}'.",
+  "error_string_not_found": "Couldn't find that string.",
+
+  "emoji_list": [
+    "emoji_fishing",
+    "emoji_fortune",
+    "emoji_strength",
+    "emoji_wheel",
+    "emoji_shop",
+    "emoji_submissions",
+    "emoji_starfruit",
+    "emoji_pumpkin",
+    "emoji_flower",
+    "emoji_cheese",
+    "emoji_burger",
+    "emoji_leaf",
+    "emoji_puffer",
+    "emoji_cider"
+  ],
+
+  "emoji_fishing": "2022autumnfishing",
+  "emoji_fortune": "2022autumnfortune",
+  "emoji_strength": "2022autumnstrength",
+  "emoji_wheel": "2022autumnwheel",
+  "emoji_shop": "2022autumnshop",
+  "emoji_submissions": "2022autumnsubmissions",
+
+  "emoji_starfruit": "2022autumnstarfruit",
+  "emoji_pumpkin": "2022autumnpumpkin",
+  "emoji_flower": "2022autumnflower",
+  "emoji_cheese": "2022autumncheese",
+  "emoji_burger": "2022autumnburger",
+  "emoji_cider": "2022autumncider",
+  "emoji_leaf": "2022autumnleaf",
+  "emoji_puffer": "2022autumnpuffer",
+
+  "emoji_balance_get": "2022autumnshop",
+  "emoji_balance_add": "2022autumnshop",
+  "emoji_earnings_get": "2022autumnshop",
+  "emoji_earnings_add": "2022autumnshop",
+  "emoji_update_shop": "2022autumnshop",
+
+  "message_shop_title": "**Roll up, roll up! It's the sideshow Star Token Shop!**",
+  "message_shop_body": "Here you can exchange all your hard-earned Star Tokens for a handful of goodies. All your tokens and rewards will vanish after the event, so don't worry about saving up!\n\nFancy trying on a different colour for a change? Look no further, here you can trade in tokens for cooler(TM) role colours for the duration of the event!\nRoles collected from the shop are unique - trading in for a new role will replace any other shop roles… no refunds! This is to make sure you've always got the icon and colour you like.\n\nHere's the lowdown on the shop roles:\n\n{0}\n\n{1}\tTrade in your Star Tokens for prizes?",
+  "message_roles_format": "\t{0} {1} — **{2}** Star Tokens",
+
+  "shop_role_format": "{0} ({1})",
+  "shop_responses_poor": [
+    "You can't afford that, you need **{0}** more Star Tokens!",
+    "You don't have enough Star Tokens for that, you need **{0}** more!",
+    "You need **{0}** more Star Tokens for that!",
+    "You need to earn **{0}** more Star Tokens to afford that!"
+  ],
+  "shop_responses_purchase": [
+    "You spent **{0}** Star Tokens, and you still have **{1}** left.",
+    "You used **{0}** of your Star Tokens, leaving you with **{1}**.",
+    "You traded in **{0}** Star Tokens, with **{1}** left in your pouch.",
+    "You exchanged **{0}** Star Tokens, with **{1}** left over."
+  ],
+  "shop_responses_purchase_role": [
+    "You came all the way here just to see a cheese wheel. It *was* pretty big, though.",
+    "You caught the first flight here just to try a flame-grilled burger. It *was* pretty tasty, though.",
+    "You drove countless miles through the desert just to peep the pumpkins on show. It *was* pretty nice, though.",
+    "You hiked over meadows and mountains just to see the sunflowers down south. It *was* pretty scenic, though.",
+    "You dropped your tools and walked from your job just to come taste the stardrops of the valley. It *was* pretty cool, though.",
+    "You rode your trusty bike through swamp and marsh to town just to taste the local cider. It *was* pretty fruity, though.",
+    "You crawled through bramble and thicket from far over the hills just to glimpse the falling autumn leaves. It *was* pretty comfy, though.",
+    "You ran the marathon trail from the Gooseberry Grove to Pelican Town just to touch the roundest puffers. It was incredbly painful."
+  ],
+  "balance_responses_too_low": [
+    "You don't have enough Star Tokens for that.",
+    "You can't do that with only **{0}** Star Tokens.",
+    "You need more Star Tokens to do that."
+  ],
+  "balance_responses_added": [
+    "You add **{0}** Star Tokens to your stash!",
+    "You've earned **{0}** Star Tokens!",
+    "You got **{0}** Star Tokens!",
+    "You add another **{0}** Star Tokens to your pouch!",
+    "You drop the **{0}** Star Tokens into your wallet!",
+    "You won **{0}** Star Tokens!"
+  ],
+  "balance_responses_removed": [
+    "You lost **{0}** Star Tokens…",
+    "You spent **{0}** Star Tokens."
+  ],
+  "balance_responses_donated": [
+    "You donated **{0}** Star Tokens to {1}!",
+    "You gave **{0}** Star Tokens to {1}!",
+    "You gave away **{0}** Star Tokens to {1}!",
+    "You passed **{0}** Star Tokens to {1}!"
+  ],
+  "balance_responses_none": [
+    "You don't have any Star Tokens…",
+    "Your Star Token pouch is empty…",
+    "You haven't earned any Star Tokens yet…",
+    "You need to join in the sideshows to earn Star Tokens…"
+  ],
+  "balance_responses_one": [
+    "You have **1** Star Token.",
+    "You have exactly **one (1)** Star Token.",
+    "You've got **1** Star Token. Don't spend it all in one place.",
+    "You've earned **1** Star Token."
+  ],
+  "balance_responses_many": [
+    "You've earned **{0}** Star Tokens.",
+    "You've got a total of **{0}** Star Tokens.",
+    "You've collected **{0}** Star Tokens."
+  ],
+  "submission_responses_art": [
+    "Thanks for the wonderful art! You've earned **{0}** Star Tokens.",
+    "Beautiful art! You've won **{0}** Star Tokens.",
+    "Thanks for submitting! Here's **{0}** Star Tokens as a prize.",
+    "Lovely! Have **{0}** Star Tokens as a treat."
+  ],
+  "submission_responses_food": [
+    "Thanks for the takeaway lunch! You've earned **{0}** Star Tokens.",
+    "Looks delicious! You've won **{0}** Star Tokens.",
+    "Thanks for submitting! Here's **{0}** Star Tokens as a prize.",
+    "Lovely! Have **{0}** Star Tokens as a treat."
+  ],
+  "fishing_responses_none": [
+    "You cast your line, but nothing bit.",
+    "Nothing going.",
+    "Nothing but seaweed.",
+    "Nothing worth catching.",
+    "Nothing… must have been the wind."
+  ],
+  "fishing_responses_one": [
+    "It's a catch!",
+    "You caught a fish!",
+    "You snagged a fish!",
+    "There's a fish on the line!",
+    "There's a bite!",
+    "Score!"
+  ],
+  "fishing_responses_many": [
+    "It's a haul!",
+    "You caught a handful of fish!",
+    "There's some fish on the line!",
+    "It's a full net!"
+  ],
+  "fishing_responses_value": [
+    "It's a big catch!",
+    "It's a record catch!",
+    "It's a huge catch!"
+  ],
+  "fishing_responses_bonus": [
+    "You find a pearl in your catch.",
+    "You notice some extra loot on the line.",
+    "You hooked a small treasure chest, too.",
+    "You notice some gold caught on your line.",
+    "You find a mermaid's jewel in your net.",
+    "You untangle a silver necklace from your catch."
+  ],
+  "fishing_responses_timeout": [
+    "The fish have already moved on…",
+    "The fish left a while ago…",
+    "The fish are all gone…",
+    "The fish swam away earlier…"
+  ],
+  "fortune_response_format": "{0}\t{1}",
+  "fortune_responses": [
+    "Ahh… It is certain.",
+    "…Oh? It is decidedly so.",
+    "Ooo… Without a doubt.",
+    "Hmm… Yes definitely.",
+    "You may rely on it.",
+    "As I see it, yes.",
+    "Is Sam’s hair ugly?",
+    "As certain as you are to find an ancient seed.",
+    "It’s strange, but the taste reminds you of the answer “yes.”",
+    "Ahh… Most likely.",
+    "Fairies’ reply is yes.",
+    "Yoba says yes.",
+    "Junimos point to yes.",
+    "Reply is shadowy like Krobus.",
+    "Hmm… Ask again later.",
+    "Better not tell you now...",
+    "…Oh? Cannot predict now.",
+    "Concentrate and ask again.",
+    "Pierre says yes, but are you really going to listen to him?",
+    "As surely as Abigail is the Wizard’s daughter.",
+    "Your mind is filled with thoughts of “maybe.”",
+    "You’re paying me too little to answer this.",
+    "The crystal ball has moved on…",
+    "Don't count on it.",
+    "Yoba’s reply is no.",
+    "The junimos say no.",
+    "Fairies point to no.",
+    "…Oh? Very doubtful.",
+    "No, just because I don’t feel like it.",
+    "You feel an unwavering connection to the word “no.”",
+    "As unlikely as a falling star."
+  ],
+  "fortune_responses_cooldown": [
+    "I've already read your fortune… go away.",
+    "Begone, your fortune is already told.",
+    "Don't make me repeat myself…",
+    "Your fortune will be no better for asking again…"
+  ],
+  "strength_response_format": "{0}  **{1}** {2}\n**{3}  {4}**",
+  "strength_responses_start": [
+    "You step up to the strength test, and…",
+    "You take a swing at the strength test, and…",
+    "You wind up a hit on the strength test, and…",
+    "You pick up the mallet for the strength test, and…",
+    "You eye up the strength test, and…",
+    "You flex hard before the strength test, and…",
+    "You get a running start on the strength test, and…",
+    "You trip and fall on the strength test, and…",
+    "You drop the mallet on the strength test, and…",
+    "You warm up with some stretches before the strength test, and…",
+    "You throw a wild punch at the strength test, and…"
+  ],
+  "strength_responses_hit": [
+    "WHAM!!",
+    "SOCK!!",
+    "BONK!!",
+    "WHACK!!",
+    "BIFF!!",
+    "SMASH!!"
+  ],
+  "strength_responses_end": [
+    "Your score:",
+    "You scored:",
+    "Your rating:"
+  ],
+  "strength_responses_weak": [
+    "Wow, you're weak. Here's a Star Token.",
+    "Here's a Star Token as a consolsation prize.",
+    "I'm amazed you even picked up that mallet. Here's a Star Token.",
+    "Wow. Zero strength. I'm actually impressed with how weak you are. Here's a star token."
+  ],
+  "strength_responses_strong": [
+    "Man, you're strong. Here's a Star Token.",
+    "Here's a Star Token as a little extra prize.",
+    "I've never seen someone hit that hard. Here's a Star Token.",
+    "HA! Now that's what I like to see! Here, have a Star Token."
+  ],
+  "strength_responses_score": [
+    "Plankton",
+    "George's Knee",
+    "Skim Milk",
+    "Wet Tissue",
+    "Alfredo Sauce",
+    "Toothpick",
+    "Shrimp",
+    "Goldfish",
+    "Soggy Spaghetti",
+    "Baby Duck",
+    "Squashed Strawberry",
+    "Mouse",
+    "Carrot Stick",
+    "Twig",
+    "Trout",
+    "Paper Maché",
+    "Buttermilk",
+    "Pancake",
+    "Cardboard",
+    "Balsa Wood",
+    "Hardened Clay",
+    "Prairie Dog",
+    "Leather Boot",
+    "Hot Mustard",
+    "Scrap Metal",
+    "Sandstone",
+    "Sheep Dog",
+    "Small Donkey",
+    "Kent's Jaw",
+    "Angry Hog",
+    "Boulder",
+    "Gym Teacher",
+    "Tree Trunk",
+    "Iron",
+    "Bodybuilder",
+    "Mountain Troll",
+    "Lumberjack",
+    "Robin's Grip",
+    "Horse",
+    "Ox",
+    "Bulldozer",
+    "Gorilla",
+    "Mammoth",
+    "ConcernedApe's Biceps"
+  ],
+  "strength_responses_cooldown": [
+    "Your arms must be sore, come back later.",
+    "You're gonna break my machine, kid. Come back later.",
+    "You gotta be tired by now, come back in a while.",
+    "You take a break before you break my strength tester, come back in a while.",
+    "You best take a break before you break your arms, come back later."
+  ],
+  "wheel_responses_params": [
+    "You need to say how many Star Tokens you'd like to bet!",
+    "You need to give a number of Star Tokens to bet!",
+    "You need to add a number of Star Tokens to wager!"
+  ],
+  "wheel_responses_start": [
+    "You step up to the wheel…",
+    "You give the wheel a spin…",
+    "You spin the wheel…",
+    "You wind up the wheel…",
+    "You throw your whole weight on the wheel…"
+  ],
+  "wheel_responses_win_a": [
+    "Score! It landed on green!",
+    "Yes! It turned out green!",
+    "It lands on green!",
+    "It's green!",
+    "You landed green!",
+    "Nice, it's green!"
+  ],
+  "wheel_responses_win_b": [
+    "It lands on orange!",
+    "You won on orange!",
+    "Phew! It landed on orange!",
+    "Score! It turned out orange!",
+    "It's orange!",
+    "Yes! It's on orange!"
+  ],
+  "wheel_responses_lose_a": [
+    "It's green…",
+    "Too bad, it's green.",
+    "It landed on green.",
+    "It turned out green…"
+  ],
+  "wheel_responses_lose_b": [
+    "It's orange…",
+    "Too bad, it's orange.",
+    "It landed on orange.",
+    "It turned out orange…"
+  ],
+  "wheel_responses_cooldown": [
+    "You've spun the wheel enough for now.",
+    "Come back soon, I'm on break.",
+    "Try again later, go easy on your wallet."
+  ],
+  "balance_add_responses_params": [
+    "Add the number of Star Tokens to add to the user's balance to the command."
+  ],
+  "earnings_add_responses_params": [
+    "Add the number of Star Tokens to add to the server's total earnings to the command."
+  ]
+}
