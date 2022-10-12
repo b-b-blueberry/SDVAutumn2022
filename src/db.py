@@ -14,7 +14,7 @@ from config import PATH_DATABASE, STARTING_BALANCE
 
 
 # Global entries
-from src import strings
+import strings
 
 TABLE_GLOBAL: str = "GLOBAL"
 KEY_GLOBAL_SHOP_ID: str = "SHOP_ID"

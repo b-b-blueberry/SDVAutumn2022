@@ -1,2 +1,3 @@
 ﻿.idea
 src/private
+__pycache__/**
