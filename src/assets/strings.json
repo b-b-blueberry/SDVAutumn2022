@@ -49,6 +49,7 @@
   "command_name_reload": "reload",
   "command_name_sync": "sync",
 
+  "log_admin_sync": "Synchronising commands. [{0}#{1} ({2})]",
   "log_admin_reload": "Reloading commands. [{0}#{1} ({2})]",
   "log_role_purchase": "Roles were edited on shop purchase.",
 

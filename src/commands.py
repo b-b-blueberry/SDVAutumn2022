@@ -4,6 +4,7 @@
 # https://github.com/StardewValleyDiscord/SDVAutumn2022
 
 import datetime
+import logging
 import random
 from importlib import reload
 from math import ceil, floor
@@ -276,10 +277,13 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         """
         Reloads the commands extension, reapplying code changes and reloading the strings data file.
         """
-        print(strings.get("log_admin_reload").format(
+        msg: str = strings.get("log_admin_reload").format(
             ctx.author.name,
             ctx.author.discriminator,
-            ctx.author.id))
+            ctx.author.id)
+        print(msg)
+        logger: logging.Logger = logging.getLogger("discord")
+        logger.log(level=logging.DEBUG, msg=msg)
         await self.bot.reload_extension(name=config.PACKAGE_COMMANDS)
         await ctx.message.add_reaction(strings.emoji_confirm)
 
