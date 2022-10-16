@@ -155,8 +155,19 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
     def __init__(self, bot: Bot):
         super().__init__()
-        self.bot = bot
+
+        self.bot: Bot = bot
+        """
+        Main bot instance.
+        """
+
         self.fishing_session: Dict[int, List[int]] = {}
+        """
+        Map of Discord user IDs to message IDs they have reacted to in the fishing challenge.
+        
+        A map sharing the lifetime of the bot session is fine here as messages sent outside of the session
+        have no effect on reactions, so we don't need to check whether a reaction was already added.
+        """
 
     # Command utils
 
