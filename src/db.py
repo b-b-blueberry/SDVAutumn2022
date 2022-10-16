@@ -46,25 +46,25 @@ def setup():
     db.commit()
     db.close()
 
-def _db_read(query: [tuple, str]) -> any:
+def _db_read(_query: [tuple, str]) -> any:
     """
     Helper function to perform database reads.
     """
     sqlconn = sqlite3.connect(PATH_DATABASE)
     results: any
-    if isinstance(query, tuple):
-        results = sqlconn.execute(*query).fetchall()
+    if isinstance(_query, tuple):
+        results = sqlconn.execute(*_query).fetchall()
     else:
-        results = sqlconn.execute(query).fetchone()
+        results = sqlconn.execute(_query).fetchone()
     sqlconn.close()
     return results
 
-def _db_write(query: [Tuple[str, list], str]):
+def _db_write(_query: [Tuple[str, list], str]):
     """
     Helper function to perform database writes.
     """
     sqlconn = sqlite3.connect(PATH_DATABASE)
-    sqlconn.execute(*query) if isinstance(query, tuple) else sqlconn.execute(query)
+    sqlconn.execute(*_query) if isinstance(_query, tuple) else sqlconn.execute(_query)
     sqlconn.commit()
     sqlconn.close()
 
