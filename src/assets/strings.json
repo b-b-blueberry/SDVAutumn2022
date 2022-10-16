@@ -3,10 +3,21 @@
   "client_description": "Stardew Valley Discord 2022 Autumn event bot",
   "client_login": "Logged in as {0}#{1} ({2})",
 
+  "on": "ON",
+  "off": "OFF",
+
   "commands_response_sync": "Commands are synced.",
   "commands_response_strings": "Strings are reloaded.",
   "commands_response_commands": "Commands are reloaded.",
-  "commands_response_earnings_add": "Total earnings are now {0} ({1})",
+  "commands_response_earnings_get": "This guild has earned **{0}** Star Tokens.",
+  "commands_response_earnings_set": "Total earnings are now **{0}** Star Tokens ({1}).",
+  "commands_response_enabled": "**Enabled features**:\n{0}",
+  "commands_response_enable_submission": "Art and food submissions are **{0}**.",
+  "commands_response_enable_fishing": "Fishing game is **{0}**.",
+  "commands_response_enable_fortune": "Fortune teller is **{0}**.",
+  "commands_response_enable_wheel": "Wheel game is **{0}**.",
+  "commands_response_enable_strength": "Strength game is **{0}**.",
+  "commands_response_enable_crystalball": "Crystal ball responses are **{0}**.",
   "commands_response_send_success": "Sent message in {0}:\n{1}",
   "commands_response_send_failure": "Couldn't send that message.",
   "commands_response_edit_success": "Edited message in {0}:\n{1}",
@@ -23,7 +34,14 @@
     "command_name_strength",
     "command_name_balance_get",
     "command_name_balance_add",
-    "command_name_earnings_add",
+    "command_name_earnings",
+    "command_name_enabled",
+    "command_name_enable_submission",
+    "command_name_enable_fishing",
+    "command_name_enable_fortune",
+    "command_name_enable_wheel",
+    "command_name_enable_strength",
+    "command_name_enable_crystalball",
     "command_name_message_send",
     "command_name_message_edit",
     "command_name_shop_update",
@@ -39,7 +57,7 @@
   "command_name_strength": "strength",
   "command_name_balance_get": "tokens",
   "command_name_balance_add": "donate",
-  "command_name_earnings_add": "total_earnings",
+  "command_name_earnings": "earnings",
   "command_name_message_send": "send",
   "command_name_message_edit": "edit",
   "command_name_shop_update": "shop",
@@ -48,8 +66,22 @@
   "command_name_roles": "roles",
   "command_name_reload": "reload",
   "command_name_sync": "sync",
+  "command_name_enabled": "enabled",
+  "command_name_enable_submission": "enable_submission",
+  "command_name_enable_fishing": "enable_fishing",
+  "command_name_enable_fortune": "enable_fortune",
+  "command_name_enable_strength": "enable_strength",
+  "command_name_enable_wheel": "enable_wheel",
+  "command_name_enable_crystalball": "enable_crystalball",
 
+  "log_admin_sync": "Synchronising commands. [{0}#{1} ({2})]",
   "log_admin_reload": "Reloading commands. [{0}#{1} ({2})]",
+  "log_admin_enable_submission": "Art/food submissions are {3}. [{0}#{1} ({2})]",
+  "log_admin_enable_fishing": "Fishing game is {3}. [{0}#{1} ({2})]",
+  "log_admin_enable_fortune": "Fortune teller is {3}. [{0}#{1} ({2})]",
+  "log_admin_enable_strength": "Strength game is {3}. [{0}#{1} ({2})]",
+  "log_admin_enable_wheel": "Wheel game is {3}. [{0}#{1} ({2})]",
+  "log_admin_enable_crystalball": "Crystal ball responses are {3}. [{0}#{1} ({2})]",
   "log_role_purchase": "Roles were edited on shop purchase.",
 
   "error_not_implemented": "Not yet implemented.",
@@ -59,12 +91,12 @@
   "error_string_not_found": "Couldn't find that string.",
 
   "emoji_list": [
+    "emoji_submissions",
     "emoji_fishing",
     "emoji_fortune",
     "emoji_strength",
     "emoji_wheel",
     "emoji_shop",
-    "emoji_submissions",
     "emoji_starfruit",
     "emoji_pumpkin",
     "emoji_flower",
@@ -75,12 +107,12 @@
     "emoji_cider"
   ],
 
+  "emoji_submissions": "2022autumnsubmissions",
   "emoji_fishing": "2022autumnfishing",
   "emoji_fortune": "2022autumnfortune",
   "emoji_strength": "2022autumnstrength",
   "emoji_wheel": "2022autumnwheel",
   "emoji_shop": "2022autumnshop",
-  "emoji_submissions": "2022autumnsubmissions",
 
   "emoji_starfruit": "2022autumnstarfruit",
   "emoji_pumpkin": "2022autumnpumpkin",
@@ -138,8 +170,10 @@
     "You won **{0}** Star Tokens!"
   ],
   "balance_responses_removed": [
-    "You lost **{0}** Star Tokens…",
-    "You spent **{0}** Star Tokens."
+    "You lost **{0}** Star Tokens.",
+    "You spent **{0}** Star Tokens.",
+    "You gave away **{0}** Star Tokens.",
+    "You handed over **{0}** Star Tokens."
   ],
   "balance_responses_donated": [
     "You donated **{0}** Star Tokens to {1}!",
@@ -163,6 +197,13 @@
     "You've earned **{0}** Star Tokens.",
     "You've got a total of **{0}** Star Tokens.",
     "You've collected **{0}** Star Tokens."
+  ],
+  "balance_responses_other": [
+    "{1} has earned **{0}** Star Tokens.",
+    "{1} has collected **{0}** Star Tokens.",
+    "{1} has a total of **{0}** Star Tokens.",
+    "{1} has gathered as many as **{0}** Star Tokens.",
+    "{1} has played their way to **{0}** Star Tokens."
   ],
   "submission_responses_art": [
     "Thanks for the wonderful art! You've earned **{0}** Star Tokens.",
@@ -348,17 +389,23 @@
     "You take a break before you break my strength tester, come back in a while.",
     "You best take a break before you break your arms, come back later."
   ],
+  "wheel_response_format": "{0}\n{1}",
   "wheel_responses_params": [
-    "You need to say how many Star Tokens you'd like to bet!",
-    "You need to give a number of Star Tokens to bet!",
-    "You need to add a number of Star Tokens to wager!"
+    "You need to say which colour to bet on, and how many Star Tokens you'd like to bet!",
+    "You need to give the colour to bet on, and a number of Star Tokens to bet!",
+    "You need to add the colour to wager on, and a number of Star Tokens to wager!"
+  ],
+  "wheel_responses_colour": [
+    "You need to say which colour to bet on as green or orange!",
+    "You need to give the colour to bet on as green or orange!",
+    "You need to add the colour to wager on as green or orange!"
   ],
   "wheel_responses_start": [
-    "You step up to the wheel…",
-    "You give the wheel a spin…",
-    "You spin the wheel…",
-    "You wind up the wheel…",
-    "You throw your whole weight on the wheel…"
+    "You step up to the wheel for a spin, and…",
+    "You give the wheel a mighty spin, and…",
+    "You spin the wheel right round, and…",
+    "You wind up the wheel for a spin, and…",
+    "You throw your whole weight on the wheel, and…"
   ],
   "wheel_responses_win_a": [
     "Score! It landed on green!",

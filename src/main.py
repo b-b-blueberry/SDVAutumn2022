@@ -13,7 +13,11 @@ from discord.ext import commands
 from discord.ext.commands import Context
 from importlib import reload
 
-import config, db, strings, err, utils
+import config
+import db
+import err
+import strings
+import utils
 from config import COMMAND_PREFIX, EXTENSIONS, DISCORD_INTENTS, ROLE_ADMIN, ROLE_HELPER
 from utils import check_roles
 
@@ -35,7 +39,7 @@ logger: logging.Logger = logging.getLogger("discord")
 handler: RotatingFileHandler = RotatingFileHandler(
     filename=config.PATH_LOG,
     encoding="utf-8",
-    maxBytes=config.LOG_SIZE_MEBIBYTES * 1024 * 1024,
+    maxBytes=int(config.LOG_SIZE_MEBIBYTES * 1024 * 1024),
     backupCount=config.LOG_BACKUP_COUNT
 )
 logger.addHandler(handler)
