@@ -240,7 +240,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             user: User = await UserConverter().convert(
                 ctx=ctx,
                 argument=str(query).strip())
-            response: SCommands.SResponse = self._do_balance_get(user_id=user.id)
+            response: SCommands.SResponse = self._do_balance_get(author=ctx.author, user=user)
             emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
             msg = f"{emoji}\t{response.msg}"
         except BadArgument:
@@ -536,23 +536,25 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
         return SCommands.SResponse(msg=msg, value=balance_earned)
 
-    def _do_balance_get(self, user_id: int) -> SResponse:
+    def _do_balance_get(self, author: User, user: User) -> SResponse:
         """
         Gets a user's balance.
-        :param user_id: Discord user ID for a given user.
+        :param author: User checking balance.
+        :param user: User to check.
         """
-        balance: int = db.get_balance_for(user_id=user_id)
-        msg_balance_key: str = "balance_responses_none" if balance < 1 \
+        balance: int = db.get_balance_for(user_id=user.id)
+        msg_balance_key: str = "balance_responses_other" if author.id != user.id \
+            else "balance_responses_none" if balance < 1 \
             else "balance_responses_one" if balance == 1 \
             else "balance_responses_many"
-        msg: str = strings.random(msg_balance_key).format(balance)
+        msg: str = strings.random(msg_balance_key).format(balance, user.mention)
         return SCommands.SResponse(msg=msg, value=balance)
 
     def _do_balance_set(self, guild_id: int, user_from: User, user_to: User, value: int) -> SResponse:
         """
         Sets balance for a user.
         :param user_from: User donating balance.
-        :param user_to: Discord user ID for a given user.
+        :param user_to: User receiving donation.
         :param value: Value to be added to user's balance.
         """
         # Admin users will not be deducted their balance

@@ -196,6 +196,13 @@
     "You've got a total of **{0}** Star Tokens.",
     "You've collected **{0}** Star Tokens."
   ],
+  "balance_responses_other": [
+    "{1} has earned **{0}** Star Tokens.",
+    "{1} has collected **{0}** Star Tokens.",
+    "{1} has a total of **{0}** Star Tokens.",
+    "{1} has gathered as many as **{0}** Star Tokens.",
+    "{1} has played their way to **{0}** Star Tokens."
+  ],
   "submission_responses_art": [
     "Thanks for the wonderful art! You've earned **{0}** Star Tokens.",
     "Beautiful art! You've won **{0}** Star Tokens.",
