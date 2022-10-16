@@ -155,17 +155,17 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
     # Command utils
 
-    def _add_balance(self, user_id: int, value: int) -> int:
+    def _add_balance(self, guild_id: int, user_id: int, value: int) -> int:
         balance_current: int = db.get_balance_for(user_id=user_id)
         balance_current = db.set_balance_for(user_id=user_id, value=balance_current + value)
         if value > 0:
-            self._add_earnings(value=value)
+            self._add_earnings(guild_id=guild_id, value=value)
         return balance_current
 
-    def _add_earnings(self, value: int) -> int:
-        earnings_current: int = db.get_global_earnings()
+    def _add_earnings(self, guild_id: int, value: int) -> int:
+        earnings_current: int = db.get_guild_earnings(guild_id=guild_id)
         if value > 0:
-            earnings_current = db.set_global_earnings(value=earnings_current + value)
+            earnings_current = db.set_guild_earnings(guild_id=guild_id, value=earnings_current + value)
         return earnings_current
 
     # Default user commands
@@ -173,23 +173,24 @@ class SCommands(Cog, name=config.COG_COMMANDS):
     @commands.command(name=strings.get("command_name_wheel"))
     @commands.cooldown(rate=config.WHEEL_USE_RATE, per=config.WHEEL_USE_PER, type=BucketType.user)
     async def cmd_wheel(self, ctx: Context, value: int) -> None:
-        response: SCommands.SResponse = self._do_wheel(user_id=ctx.author.id, value=value)
-        if response.value > 0:
-            response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
+        response: SCommands.SResponse = self._do_wheel(guild_id=ctx.guild.id, user_id=ctx.author.id, value=value)
+        response_key: str = 'balance_responses_added' if response.value > 0 else 'balance_responses_removed'
+        if response.value != 0:
+            response.msg += f"\n{strings.random(response_key).format(response.value)}"
         await ctx.reply(content=response.msg)
 
     @commands.command(name=strings.get("command_name_fortune"))
     @commands.cooldown(rate=config.FORTUNE_USE_RATE, per=config.FORTUNE_USE_PER, type=BucketType.user)
     async def cmd_fortune(self, ctx: Context) -> None:
         response: SCommands.SResponse = self._do_fortune_command(user_id=ctx.author.id)
-        if response.value > 0:
+        if response.value != 0:
             response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
         await ctx.reply(content=response.msg)
 
     @commands.command(name=strings.get("command_name_strength"))
     @commands.cooldown(rate=config.STRENGTH_USE_RATE, per=config.STRENGTH_USE_PER, type=BucketType.user)
     async def cmd_strength(self, ctx: Context) -> None:
-        response: SCommands.SResponse = self._do_strength(user_id=ctx.author.id)
+        response: SCommands.SResponse = self._do_strength(guild_id=ctx.guild.id, user_id=ctx.author.id)
         if response.value > 0:
             response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
         await ctx.reply(content=response.msg)
@@ -229,24 +230,45 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             user: User = await UserConverter().convert(
                 ctx=ctx,
                 argument=str(query).strip())
-            response: SCommands.SResponse = self._do_balance_set(user_from=ctx.author, user_to=user, value=value)
+            response: SCommands.SResponse = self._do_balance_set(guild_id=ctx.guild.id, user_from=ctx.author, user_to=user, value=value)
             msg = response.msg
         except BadArgument:
             msg = strings.get("commands_error_user")
         await ctx.reply(content=msg)
 
-    @commands.command(name=strings.get("command_name_earnings_add"), hidden=True)
+    @commands.command(name=strings.get("command_name_earnings"), hidden=True)
     @commands.check(requires_admin)
-    async def cmd_earnings_set(self, ctx: Context, value: int):
-        earnings: int = self._add_earnings(value=value)
-        msg: str = strings.get("commands_response_earnings_add").format(earnings, f"+{value}" if value >= 0 else value)
+    async def cmd_earnings(self, ctx: Context, value: int = None) -> None:
+        """
+        Get or set the total earnings for this guild.
+
+        Omitting value prints the current amount with no change to its value.
+        :param ctx:
+        :param value: Optional balance change to apply to the total earnings.
+        """
+        msg: str
+        earnings_current: int = db.get_guild_earnings(guild_id=ctx.guild.id)
+        if not value:
+            # Omitting value will get current earnings
+            msg = strings.get("commands_response_earnings_get").format(earnings_current)
+        else:
+            # Including value will change current earnings
+            earnings_total: int = db.set_guild_earnings(guild_id=ctx.guild.id, value=earnings_current + value)
+            msg = strings.get("commands_response_earnings_set").format(earnings_total, f"+{value}" if value >= 0 else value)
         await ctx.reply(content=msg)
 
     @commands.command(name=strings.get("command_name_sync"), hidden=True)
     @commands.check(requires_admin)
-    async def cmd_sync(self, message: Message) -> None:
-        await self.bot.sync_guild(message.guild)
-        await message.reply(content=strings.get("commands_response_sync"))
+    async def cmd_sync(self, ctx: Context) -> None:
+        msg: str = strings.get("log_admin_sync").format(
+            ctx.author.name,
+            ctx.author.discriminator,
+            ctx.author.id)
+        print(msg)
+        logger: logging.Logger = logging.getLogger("discord")
+        logger.log(level=logging.DEBUG, msg=msg)
+        await self.bot.sync_guild(ctx.guild)
+        await ctx.reply(content=strings.get("commands_response_sync"))
 
     @commands.command(name=strings.get("command_name_reload"), aliases=["z"], hidden=True)
     @commands.check(requires_admin)
@@ -371,7 +393,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         response: SCommands.SResponse = SCommands.SResponse(msg=msg, value=config.FORTUNE_USE_VALUE)
         return response
 
-    def _do_strength(self, user_id: int) -> SResponse:
+    def _do_strength(self, guild_id: int, user_id: int) -> SResponse:
         """
         Generate a message for a strength-test scenario and add value to user's balance.
         :param user_id: Discord user ID for a given user.
@@ -387,7 +409,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         # Add value of outcome as a ratio of possible outcomes earned by this user to their balance
         balance_bonus: int = config.STRENGTH_BONUS_VALUE if is_weak or is_strong else 0
         balance_earned: int = outcome_value + balance_bonus
-        self._add_balance(user_id=user_id, value=balance_earned)
+        self._add_balance(guild_id=guild_id, user_id=user_id, value=balance_earned)
 
         response: str = strings.get("strength_response_format").format(
             strings.random("strength_responses_start"),
@@ -405,7 +427,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
         return SCommands.SResponse(msg=msg, value=balance_earned)
 
-    def _do_wheel(self, user_id: int, value: int) -> SResponse:
+    def _do_wheel(self, guild_id: int, user_id: int, value: int) -> SResponse:
         random_range: int = 100
         random_result: int = random.randint(0, random_range)
         is_win: bool = random_result < random_range * config.WHEEL_WIN_CHANCE
@@ -413,7 +435,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
         # Add or remove from the user's balance
         balance_earned: int = value * (1 if is_win else -1)
-        self._add_balance(user_id=user_id, value=balance_earned)
+        self._add_balance(guild_id=guild_id, user_id=user_id, value=balance_earned)
 
         response_key: str = "wheel_responses_win_a" if is_win and is_set_a \
             else "wheel_responses_win_b" if is_win and not is_set_a \
@@ -437,7 +459,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         msg: str = strings.random(msg_balance_key).format(balance)
         return SCommands.SResponse(msg=msg, value=balance)
 
-    def _do_balance_set(self, user_from: User, user_to: User, value: int) -> SResponse:
+    def _do_balance_set(self, guild_id: int, user_from: User, user_to: User, value: int) -> SResponse:
         """
         Sets balance for a user.
         :param user_from: User donating balance.
@@ -452,14 +474,14 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             else "balance_responses_donated"
         msg: str = strings.random(msg_balance_key).format(balance, user_to.mention)
         # Add balance to target user
-        self._add_balance(user_id=user_to.id, value=balance_donated)
+        self._add_balance(guild_id=guild_id, user_id=user_to.id, value=balance_donated)
         if not is_admin:
             # Deduct balance from self user
-            self._add_balance(user_id=user_from.id, value=-balance_donated)
+            self._add_balance(guild_id=guild_id, user_id=user_from.id, value=-balance_donated)
         return SCommands.SResponse(msg=msg, value=value)
 
     async def _do_update_shop(self, ctx: Context) -> str:
-        message_id: int = db.get_shop_message_id()
+        message_id: int = db.get_shop_message_id(guild_id=ctx.guild.id)
         emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
         msg_roles: str = "\n".join([strings.get("message_roles_format").format(
             utils.get(self.bot.emojis, name=strings.get(f"emoji_{role_data.get('name')}")),
@@ -484,7 +506,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                 message.jump_url)
         else:
             message = await channel.send(content=None, embed=embed, view=view)
-            db.set_shop_message_id(message_id=message.id)
+            db.set_shop_message_id(guild_id=ctx.guild.id, message_id=message.id)
             msg = strings.get("commands_response_send_success").format(
                 channel.mention,
                 message.jump_url)
@@ -504,8 +526,9 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                 is_art: bool = reaction.message.channel.id == config.CHANNEL_ART
                 balance_earned: int = config.SUBMISSION_ART_VALUE if is_art else config.SUBMISSION_FOOD_VALUE
                 balance_earned *= num_attachments
-                self._add_balance(user_id=user.id, value=balance_earned)
-                msg: str = strings.random("submission_responses_art" if is_art else "submission_responses_food").format(balance_earned)
+                self._add_balance(guild_id=reaction.message.guild.id, user_id=user.id, value=balance_earned)
+                msg_key: str = "submission_responses_art" if is_art else "submission_responses_food"
+                msg: str = strings.random(msg_key).format(balance_earned)
                 return msg
 
     async def _do_fishing(self, reaction: Reaction, user: User) -> Optional[SResponse]:
@@ -514,7 +537,6 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         :param reaction: Reaction instance for a given emoji on the message.
         :param user: User reacting to the message.
         """
-        # TODO: Prevent users adding multiple reactions to the same message to cheat their balance.
         response: Optional[SCommands.SResponse] = None
 
         # Check fishing session to prevent users adding multiple reactions to the same message to cheat their balance
@@ -550,7 +572,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                     if random_result < FISHING_BONUS_CHANCE * random_range:
                         balance_bonus = FISHING_BONUS_VALUE
                     balance_earned = fish_value + balance_bonus
-                    self._add_balance(user_id=user.id, value=balance_earned)
+                    self._add_balance(guild_id=reaction.message.guild.id, user_id=user.id, value=balance_earned)
 
                 # Generate a reply message based on number or value of fish caught
                 response_key: str = "fishing_responses_none" if not is_catch \
