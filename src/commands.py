@@ -119,16 +119,20 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             :param member: User to award role to.
             :return: Confirmation message.
             """
-            role: Role = utils.get(member.guild.roles, id=self._get_role_data().get("id"))
+            role_data: dict = self._get_role_data()
+            roles_add: List[Role] = [utils.get(member.guild.roles, id=role_id)
+                                     for role_id in [role_data.get("id"), config.ROLE_EVENT]]
+            roles_remove: List[Role] = [utils.get(member.guild.roles, id=rd.get("id"))
+                                        for rd in config.SHOP_ROLE_LIST
+                                        if member.get_role(rd.get("id"))]
             log_reason: str = strings.get("log_role_purchase")
 
             # Remove other shop roles
-            await member.remove_roles(*[role_data.get("id") for role_data in config.SHOP_ROLE_LIST], reason=log_reason)
+            await member.remove_roles(*[role for role in roles_remove if role], reason=log_reason)
             # Add selected shop role, as well as generic event role
-            await member.add_roles(*[role.id, config.ROLE_EVENT], reason=log_reason)
+            await member.add_roles(*[role for role in roles_add if role], reason=log_reason)
 
-            msg_index: int = self._get_role_data().get("response_index")
-            msg: str = strings.get("shop_responses_purchase_role")[msg_index]
+            msg: str = strings.get("shop_responses_purchase_role")[role_data.get("response_index")]
             return msg
 
         def _get_role_data(self) -> dict:
