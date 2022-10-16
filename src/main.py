@@ -39,7 +39,7 @@ logger: logging.Logger = logging.getLogger("discord")
 handler: RotatingFileHandler = RotatingFileHandler(
     filename=config.PATH_LOG,
     encoding="utf-8",
-    maxBytes=config.LOG_SIZE_MEBIBYTES * 1024 * 1024,
+    maxBytes=int(config.LOG_SIZE_MEBIBYTES * 1024 * 1024),
     backupCount=config.LOG_BACKUP_COUNT
 )
 logger.addHandler(handler)
