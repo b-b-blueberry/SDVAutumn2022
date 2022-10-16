@@ -202,14 +202,26 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
     @commands.command(name=strings.get("command_name_wheel"))
     @commands.cooldown(rate=config.WHEEL_USE_RATE, per=config.WHEEL_USE_PER, type=BucketType.user)
-    async def cmd_wheel(self, ctx: Context, value: int) -> None:
+    async def cmd_wheel(self, ctx: Context, query: str, value: int) -> None:
         if not config.WHEEL_ENABLED:
             return
-        response: SCommands.SResponse = self._do_wheel(guild_id=ctx.guild.id, user_id=ctx.author.id, value=value)
-        response_key: str = 'balance_responses_added' if response.value > 0 else 'balance_responses_removed'
-        if response.value != 0:
-            response.msg += f"\n{strings.random(response_key).format(response.value)}"
-        await ctx.reply(content=response.msg)
+        msg: str
+        balance_current: int = db.get_balance_for(user_id=ctx.author.id)
+        if balance_current < value:
+            msg = strings.random("shop_responses_poor").format(value - balance_current)
+        else:
+            query_clean: str = query.strip().lower()
+            is_green: bool = query_clean.startswith("g") or query_clean.startswith("b")
+            is_orange: bool = query_clean.startswith("o") or query_clean.startswith("r")
+            if not is_green and not is_orange:
+                msg = strings.random("wheel_responses_colour")
+            else:
+                response: SCommands.SResponse = self._do_wheel(guild_id=ctx.guild.id, user_id=ctx.author.id, value=value, is_green=is_green)
+                response_key: str = 'balance_responses_added' if response.value > 0 else 'balance_responses_removed'
+                if response.value != 0:
+                    response.msg += f"\n{strings.random(response_key).format(response.value)}"
+                msg = response.msg
+        await ctx.reply(content=msg)
 
     @commands.command(name=strings.get("command_name_fortune"))
     @commands.cooldown(rate=config.FORTUNE_USE_RATE, per=config.FORTUNE_USE_PER, type=BucketType.user)
@@ -516,23 +528,24 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
         return SCommands.SResponse(msg=msg, value=balance_earned)
 
-    def _do_wheel(self, guild_id: int, user_id: int, value: int) -> SResponse:
+    def _do_wheel(self, guild_id: int, user_id: int, value: int, is_green: bool) -> SResponse:
         random_range: int = 100
         random_result: int = random.randint(0, random_range)
         is_win: bool = random_result < random_range * config.WHEEL_WIN_CHANCE
-        is_set_a: bool = random_result % 2 == 0
 
         # Add or remove from the user's balance
         balance_earned: int = value * (1 if is_win else -1)
         self._add_balance(guild_id=guild_id, user_id=user_id, value=balance_earned)
 
-        response_key: str = "wheel_responses_win_a" if is_win and is_set_a \
-            else "wheel_responses_win_b" if is_win and not is_set_a \
-            else "wheel_responses_lose_a" if not is_win and is_set_a \
-            else "wheel_responses_win_b"
-        response: str = strings.random(response_key)
+        # Send a reply with the matching colour set for a win or loss
         emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_wheel"))
-        msg: str = f"{emoji}\t{response}"
+        response_start: str = f"{emoji}\t{strings.random('wheel_responses_start')}"
+        response_key: str = "wheel_responses_win_a" if is_win and is_green \
+            else "wheel_responses_lose_a" if (not is_win) and is_green \
+            else "wheel_responses_win_b" if is_win and (not is_green) \
+            else "wheel_responses_lose_b"   # if (not is_win) and (not is_green)
+        response: str = strings.random(response_key)
+        msg: str = strings.get("wheel_response_format").format(response_start, response)
 
         return SCommands.SResponse(msg=msg, value=balance_earned)
 

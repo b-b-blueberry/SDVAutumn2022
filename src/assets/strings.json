@@ -170,8 +170,10 @@
     "You won **{0}** Star Tokens!"
   ],
   "balance_responses_removed": [
-    "You lost **{0}** Star Tokens…",
-    "You spent **{0}** Star Tokens."
+    "You lost **{0}** Star Tokens.",
+    "You spent **{0}** Star Tokens.",
+    "You gave away **{0}** Star Tokens.",
+    "You handed over **{0}** Star Tokens."
   ],
   "balance_responses_donated": [
     "You donated **{0}** Star Tokens to {1}!",
@@ -387,17 +389,23 @@
     "You take a break before you break my strength tester, come back in a while.",
     "You best take a break before you break your arms, come back later."
   ],
+  "wheel_response_format": "{0}\n{1}",
   "wheel_responses_params": [
-    "You need to say how many Star Tokens you'd like to bet!",
-    "You need to give a number of Star Tokens to bet!",
-    "You need to add a number of Star Tokens to wager!"
+    "You need to say which colour to bet on, and how many Star Tokens you'd like to bet!",
+    "You need to give the colour to bet on, and a number of Star Tokens to bet!",
+    "You need to add the colour to wager on, and a number of Star Tokens to wager!"
+  ],
+  "wheel_responses_colour": [
+    "You need to say which colour to bet on as green or orange!",
+    "You need to give the colour to bet on as green or orange!",
+    "You need to add the colour to wager on as green or orange!"
   ],
   "wheel_responses_start": [
-    "You step up to the wheel…",
-    "You give the wheel a spin…",
-    "You spin the wheel…",
-    "You wind up the wheel…",
-    "You throw your whole weight on the wheel…"
+    "You step up to the wheel for a spin, and…",
+    "You give the wheel a spin, and…",
+    "You spin the whee, andl…",
+    "You wind up the wheel, and…",
+    "You throw your whole weight on the wheel, and…"
   ],
   "wheel_responses_win_a": [
     "Score! It landed on green!",
