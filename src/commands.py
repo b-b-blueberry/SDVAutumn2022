@@ -17,15 +17,19 @@ from discord.ext.commands import Cog, Context, BucketType, UserConverter, BadArg
     MissingRequiredArgument
 from discord.ui import View, Button
 
-from src import config, strings, db
-from src.config import FISHING_SCOREBOARD, ROLE_HELPER, ROLE_ADMIN, FISHING_BONUS_VALUE, FISHING_BONUS_CHANCE, \
+import config
+import strings
+import db
+from config import FISHING_SCOREBOARD, ROLE_HELPER, ROLE_ADMIN, FISHING_BONUS_VALUE, FISHING_BONUS_CHANCE, \
     FISHING_HIGH_VALUE
-from src.utils import check_roles, requires_admin, get_guild_message
+from utils import check_roles, requires_admin, get_guild_message
 
 """
 Contents:
     SCommands
         Classes
+            SShopView
+            SShopButton
             SResponse
         Init
         Command utils

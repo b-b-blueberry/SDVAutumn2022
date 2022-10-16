@@ -7,7 +7,7 @@ import json
 import random as rand
 from typing import Optional, Any
 
-from src.config import PATH_STRINGS
+from config import PATH_STRINGS
 
 with open(file=PATH_STRINGS, mode="r", encoding="utf8") as strings_file:
     _data = json.load(strings_file)

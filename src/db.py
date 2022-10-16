@@ -14,8 +14,6 @@ from config import PATH_DATABASE, STARTING_BALANCE
 
 
 # Guild entries
-from src import strings
-
 TABLE_GUILDS: str = "GUILDS"
 KEY_GUILD_ID: str = "ID"
 KEY_GUILD_SHOP_ID: str = "SHOP_ID"

@@ -13,9 +13,13 @@ from discord.ext import commands
 from discord.ext.commands import Context
 from importlib import reload
 
-from src import config, db, strings, err, utils
-from src.config import COMMAND_PREFIX, EXTENSIONS, DISCORD_INTENTS, ROLE_ADMIN, ROLE_HELPER
-from src.utils import check_roles
+import config
+import db
+import err
+import strings
+import utils
+from config import COMMAND_PREFIX, EXTENSIONS, DISCORD_INTENTS, ROLE_ADMIN, ROLE_HELPER
+from utils import check_roles
 
 """
 Contents:
