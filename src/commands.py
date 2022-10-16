@@ -241,7 +241,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                 ctx=ctx,
                 argument=str(query).strip())
             response: SCommands.SResponse = self._do_balance_get(user_id=user.id)
-            msg = response.msg
+            emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
+            msg = f"{emoji}\t{response.msg}"
         except BadArgument:
             msg = strings.get("commands_error_user")
         await ctx.reply(content=msg)
@@ -267,7 +268,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                 ctx=ctx,
                 argument=str(query).strip())
             response: SCommands.SResponse = self._do_balance_set(guild_id=ctx.guild.id, user_from=ctx.author, user_to=user, value=value)
-            msg = response.msg
+            emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
+            msg = f"{emoji}\t{response.msg}"
         except BadArgument:
             msg = strings.get("commands_error_user")
         await ctx.reply(content=msg)
