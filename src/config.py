@@ -80,11 +80,13 @@ STARTING_BALANCE: int = cfg["balance"]["starting_balance"]
 
 # Submissions
 
+SUBMISSION_ENABLED: bool = cfg["submissions"]["enabled"]
 SUBMISSION_ART_VALUE: int = cfg["submissions"]["art_value"]
 SUBMISSION_FOOD_VALUE: int = cfg["submissions"]["food_value"]
 
 # Fishing challenge
 
+FISHING_ENABLED: bool = cfg["fishing"]["enabled"]
 FISHING_BONUS_CHANCE: float = cfg["fishing"]["bonus_chance"]
 FISHING_BONUS_VALUE: int = cfg["fishing"]["bonus_value"]
 FISHING_HIGH_VALUE: int = cfg["fishing"]["high_value"]
@@ -114,12 +116,14 @@ FISHING_SCOREBOARD: Dict[str, int] = {
 
 # Fortune teller
 
+FORTUNE_ENABLED: bool = cfg["fortune"]["enabled"]
 FORTUNE_USE_PER: int = cfg["fortune"]["use_per"]
 FORTUNE_USE_RATE: int = cfg["fortune"]["use_rate"]
 FORTUNE_USE_VALUE: int = cfg["fortune"]["use_value"]
 
 # Strength test
 
+STRENGTH_ENABLED: bool = cfg["strength"]["enabled"]
 STRENGTH_USE_PER: int = cfg["strength"]["use_per"]
 STRENGTH_USE_RATE: int = cfg["strength"]["use_rate"]
 STRENGTH_BONUS_VALUE: int = cfg["strength"]["bonus_value"]
@@ -127,9 +131,14 @@ STRENGTH_MAX_VALUE: int = cfg["strength"]["max_value"]
 
 # Wheel
 
+WHEEL_ENABLED: bool = cfg["wheel"]["enabled"]
 WHEEL_USE_PER: int = cfg["wheel"]["use_per"]
 WHEEL_USE_RATE: int = cfg["wheel"]["use_rate"]
 WHEEL_WIN_CHANCE: float = cfg["wheel"]["win_chance"]
+
+# Crystal ball
+
+CRYSTALBALL_ENABLED: bool = cfg["crystalball"]["enabled"]
 
 # Shop
 

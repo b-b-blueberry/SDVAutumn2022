@@ -171,6 +171,16 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
     # Command utils
 
+    def _log_admin(self, msg_key: str, user: User, value: Any = None):
+        msg: str = strings.get(msg_key).format(
+            user.name,
+            user.discriminator,
+            user.id,
+            value)
+        print(msg)
+        logger: logging.Logger = logging.getLogger("discord")
+        logger.log(level=logging.DEBUG, msg=msg)
+
     def _add_balance(self, guild_id: int, user_id: int, value: int) -> int:
         balance_current: int = db.get_balance_for(user_id=user_id)
         balance_current = db.set_balance_for(user_id=user_id, value=balance_current + value)
@@ -189,6 +199,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
     @commands.command(name=strings.get("command_name_wheel"))
     @commands.cooldown(rate=config.WHEEL_USE_RATE, per=config.WHEEL_USE_PER, type=BucketType.user)
     async def cmd_wheel(self, ctx: Context, value: int) -> None:
+        if not config.WHEEL_ENABLED:
+            return
         response: SCommands.SResponse = self._do_wheel(guild_id=ctx.guild.id, user_id=ctx.author.id, value=value)
         response_key: str = 'balance_responses_added' if response.value > 0 else 'balance_responses_removed'
         if response.value != 0:
@@ -198,6 +210,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
     @commands.command(name=strings.get("command_name_fortune"))
     @commands.cooldown(rate=config.FORTUNE_USE_RATE, per=config.FORTUNE_USE_PER, type=BucketType.user)
     async def cmd_fortune(self, ctx: Context) -> None:
+        if not config.FORTUNE_ENABLED:
+            return
         response: SCommands.SResponse = self._do_fortune_command(user_id=ctx.author.id)
         if response.value != 0:
             response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
@@ -206,6 +220,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
     @commands.command(name=strings.get("command_name_strength"))
     @commands.cooldown(rate=config.STRENGTH_USE_RATE, per=config.STRENGTH_USE_PER, type=BucketType.user)
     async def cmd_strength(self, ctx: Context) -> None:
+        if not config.STRENGTH_ENABLED:
+            return
         response: SCommands.SResponse = self._do_strength(guild_id=ctx.guild.id, user_id=ctx.author.id)
         if response.value > 0:
             response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
@@ -273,16 +289,70 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             msg = strings.get("commands_response_earnings_set").format(earnings_total, f"+{value}" if value >= 0 else value)
         await ctx.reply(content=msg)
 
+    @commands.command(name=strings.get("command_name_enabled"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_enabled(self, ctx: Context) -> None:
+        msg = "\n".join([
+            strings.get("commands_response_enable_submission").format(strings.on_off(config.SUBMISSION_ENABLED)),
+            strings.get("commands_response_enable_fishing").format(strings.on_off(config.FISHING_ENABLED)),
+            strings.get("commands_response_enable_fortune").format(strings.on_off(config.FORTUNE_ENABLED)),
+            strings.get("commands_response_enable_strength").format(strings.on_off(config.STRENGTH_ENABLED)),
+            strings.get("commands_response_enable_wheel").format(strings.on_off(config.WHEEL_ENABLED))
+        ])
+        await ctx.reply(content=strings.get("commands_response_enabled").format(msg))
+
+    @commands.command(name=strings.get("command_name_enable_submission"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_enable_submission(self, ctx: Context, is_enabled: bool = None) -> None:
+        if is_enabled is not None:
+            config.SUBMISSION_ENABLED = is_enabled
+            self._log_admin(msg_key="log_admin_enable_submission", user=ctx.author, value=strings.on_off(is_enabled))
+        await ctx.reply(content=strings.get("commands_response_enable_submission").format(strings.on_off(config.SUBMISSION_ENABLED)))
+
+    @commands.command(name=strings.get("command_name_enable_fishing"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_enable_fishing(self, ctx: Context, is_enabled: bool = None) -> None:
+        if is_enabled is not None:
+            config.FISHING_ENABLED = is_enabled
+            self._log_admin(msg_key="log_admin_enable_fishing", user=ctx.author, value=strings.on_off(is_enabled))
+        await ctx.reply(content=strings.get("commands_response_enable_fishing").format(strings.on_off(config.FISHING_ENABLED)))
+
+    @commands.command(name=strings.get("command_name_enable_fortune"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_enable_fortune(self, ctx: Context, is_enabled: bool = None) -> None:
+        if is_enabled is not None:
+            config.FORTUNE_ENABLED = is_enabled
+            self._log_admin(msg_key="log_admin_enable_fortune", user=ctx.author, value=strings.on_off(is_enabled))
+        await ctx.reply(content=strings.get("commands_response_enable_fortune").format(strings.on_off(config.FORTUNE_ENABLED)))
+
+    @commands.command(name=strings.get("command_name_enable_strength"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_enable_strength(self, ctx: Context, is_enabled: bool = None) -> None:
+        if is_enabled is not None:
+            config.STRENGTH_ENABLED = is_enabled
+            self._log_admin(msg_key="log_admin_enable_strength", user=ctx.author, value=strings.on_off(is_enabled))
+        await ctx.reply(content=strings.get("commands_response_enable_strength").format(strings.on_off(config.STRENGTH_ENABLED)))
+
+    @commands.command(name=strings.get("command_name_enable_wheel"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_enable_wheel(self, ctx: Context, is_enabled: bool = None) -> None:
+        if is_enabled is not None:
+            config.WHEEL_ENABLED = is_enabled
+            self._log_admin(msg_key="log_admin_enable_wheel", user=ctx.author, value=strings.on_off(is_enabled))
+        await ctx.reply(content=strings.get("commands_response_enable_wheel").format(strings.on_off(config.WHEEL_ENABLED)))
+
+    @commands.command(name=strings.get("command_name_enable_crystalball"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_enable_crystalball(self, ctx: Context, is_enabled: bool = None) -> None:
+        if is_enabled is not None:
+            config.CRYSTALBALL_ENABLED = is_enabled
+            self._log_admin(msg_key="log_admin_enable_crystalball", user=ctx.author, value=strings.on_off(is_enabled))
+        await ctx.reply(content=strings.get("commands_response_enable_crystalball").format(strings.on_off(config.CRYSTALBALL_ENABLED)))
+
     @commands.command(name=strings.get("command_name_sync"), hidden=True)
     @commands.check(requires_admin)
     async def cmd_sync(self, ctx: Context) -> None:
-        msg: str = strings.get("log_admin_sync").format(
-            ctx.author.name,
-            ctx.author.discriminator,
-            ctx.author.id)
-        print(msg)
-        logger: logging.Logger = logging.getLogger("discord")
-        logger.log(level=logging.DEBUG, msg=msg)
+        self._log_admin(msg_key="log_admin_sync", user=ctx.author)
         await self.bot.sync_guild(ctx.guild)
         await ctx.reply(content=strings.get("commands_response_sync"))
 
@@ -292,13 +362,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         """
         Reloads the commands extension, reapplying code changes and reloading the strings data file.
         """
-        msg: str = strings.get("log_admin_reload").format(
-            ctx.author.name,
-            ctx.author.discriminator,
-            ctx.author.id)
-        print(msg)
-        logger: logging.Logger = logging.getLogger("discord")
-        logger.log(level=logging.DEBUG, msg=msg)
+        self._log_admin(msg_key="log_admin_reload", user=ctx.author)
         await self.bot.reload_extension(name=config.PACKAGE_COMMANDS)
         await ctx.message.add_reaction(strings.emoji_confirm)
 
@@ -641,27 +705,30 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
     async def on_message(self, message: Message) -> None:
         # Do fortune teller responses on messages
-        response: Optional[SCommands.SResponse] = await self._do_fortune_message(message=message)
-        if response:
-            await message.reply(content=response.msg)
+        if config.CRYSTALBALL_ENABLED:
+            response: Optional[SCommands.SResponse] = await self._do_fortune_message(message=message)
+            if response:
+                await message.reply(content=response.msg)
 
     async def on_reaction_add(self, reaction: Reaction, user: User) -> None:
         # Do staff verification on submissions
-        msg: str = await self._do_verification(reaction=reaction, user=user)
-        if msg:
-            await reaction.message.add_reaction(strings.emoji_confirm)
-            emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_submissions"))
-            msg = f"{emoji}\t{msg}"
-            await reaction.message.reply(content=msg)
-            return
+        if config.SUBMISSION_ENABLED:
+            msg: str = await self._do_verification(reaction=reaction, user=user)
+            if msg:
+                await reaction.message.add_reaction(strings.emoji_confirm)
+                emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_submissions"))
+                msg = f"{emoji}\t{msg}"
+                await reaction.message.reply(content=msg)
+                return
 
         # Do fishing responses on staff messages
-        response: Optional[SCommands.SResponse] = await self._do_fishing(reaction=reaction, user=user)
-        if response:
-            channel: TextChannel = self.bot.get_channel(config.CHANNEL_FISHING)
-            if response.value > 0:
-                response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
-            await channel.send(content=response.msg, allowed_mentions=AllowedMentions(users=True))
+        if config.FISHING_ENABLED:
+            response: Optional[SCommands.SResponse] = await self._do_fishing(reaction=reaction, user=user)
+            if response:
+                channel: TextChannel = self.bot.get_channel(config.CHANNEL_FISHING)
+                if response.value > 0:
+                    response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
+                await channel.send(content=response.msg, allowed_mentions=AllowedMentions(users=True))
 
     async def on_command_error(self, ctx: Context, error: Exception) -> None:
         cmd: str = ctx.command.name

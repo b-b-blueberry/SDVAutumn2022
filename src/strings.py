@@ -5,7 +5,7 @@
 
 import json
 import random as rand
-from typing import Optional
+from typing import Optional, Any
 
 from src.config import PATH_STRINGS
 
@@ -17,6 +17,9 @@ def get(__name: str) -> Optional[any]:
 
 def random(__name: str) -> Optional[str]:
     return rand.choice(_data.get(__name))
+
+def on_off(_value: Optional[Any]) -> str:
+    return _data.get("on" if _value else "off")
 
 
 emoji_confirm = "\N{WHITE HEAVY CHECK MARK}"
