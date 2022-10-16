@@ -540,10 +540,13 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         # Send a reply with the matching colour set for a win or loss
         emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_wheel"))
         response_start: str = f"{emoji}\t{strings.random('wheel_responses_start')}"
-        response_key: str = "wheel_responses_win_a" if is_win and is_green \
-            else "wheel_responses_lose_a" if (not is_win) and is_green \
-            else "wheel_responses_win_b" if is_win and (not is_green) \
-            else "wheel_responses_lose_b"   # if (not is_win) and (not is_green)
+
+        # Losses will show the response as if the opposite set landed
+        response_key: str
+        if is_green:
+            response_key = "wheel_responses_win_a" if is_win else "wheel_responses_lose_b"
+        else:
+            response_key = "wheel_responses_win_b" if is_win else "wheel_responses_lose_a"
         response: str = strings.random(response_key)
         msg: str = strings.get("wheel_response_format").format(response_start, response)
 
