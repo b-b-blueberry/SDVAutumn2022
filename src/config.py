@@ -30,7 +30,7 @@ PATH_STRINGS: str = "./assets/strings.json"
 PATH_LOG: str = "./private/discord.log"
 
 # Parse config file
-with open(PATH_CONFIG) as config_file:
+with open(file=PATH_CONFIG, mode="r", encoding="utf8") as config_file:
     cfg = json.load(config_file)
 
 # Bot
@@ -91,28 +91,7 @@ FISHING_BONUS_CHANCE: float = cfg["fishing"]["bonus_chance"]
 FISHING_BONUS_VALUE: int = cfg["fishing"]["bonus_value"]
 FISHING_HIGH_VALUE: int = cfg["fishing"]["high_value"]
 FISHING_DURATION_SECONDS: int = cfg["fishing"]["duration_seconds"]
-FISHING_SCOREBOARD: Dict[str, int] = {
-    "SDVitemtuna": 5,
-    "SDVitembass": 5,
-    "SDVpufferfish": 10,
-    "SDVitemblobfish": 15,
-    "SDVitemtreasure": 15,
-    "\N{NEWSPAPER}": 1,
-    "\N{EYEGLASSES}": 1,
-    "\N{OPTICAL DISC}": 1,
-    "\N{FISHING POLE AND FISH}": 2,
-    "\N{FISH}": 2,
-    "\N{SNAIL}": 2,
-    "\N{SHRIMP}": 2,
-    "\N{CRAB}": 2,
-    "\N{TROPICAL FISH}": 5,
-    "\N{BLOWFISH}": 5,
-    "\N{SQUID}": 5,
-    "\N{TURTLE}": 8,
-    "\N{OCTOPUS}": 8,
-    "\N{LOBSTER}": 8,
-    "\N{SHARK}": 10
-}
+FISHING_SCOREBOARD: Dict[str, int] = cfg["fishing"]["scoreboard"]
 
 # Fortune teller
 
