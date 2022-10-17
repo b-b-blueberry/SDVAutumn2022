@@ -691,6 +691,10 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                     balance_earned = fish_value + balance_bonus
                     self._add_balance(guild_id=reaction.message.guild.id, user_id=user.id, value=balance_earned)
 
+                # Abandon the catch if message had no fish emoji
+                if not any(fish_caught):
+                    return
+
                 # Generate a reply message based on number or value of fish caught
                 response_key: str = "fishing_responses_none" if not is_catch \
                     else "fishing_responses_value" if fish_value >= FISHING_HIGH_VALUE \
