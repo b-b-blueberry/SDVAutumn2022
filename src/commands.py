@@ -712,7 +712,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         :param message: Discord message to parse and create a reply to.
         """
         # Ignore messages sent outside allowed channels
-        if message.channel.id not in config.CHANNEL_COMMANDS:
+        if message.author.bot or message.channel.id not in config.CHANNEL_COMMANDS:
             return
 
         msg: str
