@@ -134,8 +134,8 @@
   "emoji_earnings_add": "2022autumnshop",
   "emoji_update_shop": "2022autumnshop",
 
-  "message_shop_title": "**Roll up, roll up! It's the sideshow Star Token Shop!**",
-  "message_shop_body": "Here you can exchange all your hard-earned Star Tokens for a handful of goodies. All your tokens and rewards will vanish after the event, so don't worry about saving up!\n\nFancy trying on a different colour for a change? Look no further, here you can trade in tokens for cooler(TM) role colours for the duration of the event!\nRoles collected from the shop are unique - trading in for a new role will replace any other shop roles… no refunds! This is to make sure you've always got the icon and colour you like.\n\nHere's the lowdown on the shop roles:\n\n{0}\n\n{1}\tTrade in your Star Tokens for prizes?",
+  "message_shop_title": "{0}  **Roll up, roll up! It's the sideshow Star Token Shop!**  {0}",
+  "message_shop_body": "Here you can exchange all your hard-earned Star Tokens for a handful of goodies.\n\nFancy looking fancy? Trade your tokens for the server's special role colours for the duration of the event… we smuggled the colours of all the server's best roles across the Gotoro border, and we've got a few rare ones in the cart!\n\n**Roles collected from the shop are unique — trading in for a new role will replace any other shop roles… no refunds!** This is to make sure you've always got the icon and colour of the last role you traded for. You can trade back for past roles if you have the tokens!\n\nHere's the lowdown on the shop roles:\n\n{0}\n\n{1}\tTrade in your Star Tokens for prizes?",
   "message_shop_role": "\t{0} {1} — **{2}** Star Tokens",
 
   "shop_role_format": "{0} ({1})",

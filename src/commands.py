@@ -601,7 +601,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         balance_to: int = db.get_balance_for(user_id=user_to.id)
         balance_donated: int = min(balance_from, value) if not is_admin else value
         is_negative: bool = not is_admin and balance_donated < 1
-        
+
         msg_balance_key: str = "balance_responses_too_low" if is_negative else "balance_responses_donated"
         msg: str = strings.random(msg_balance_key).format(balance_donated, balance_from, user_to.mention, balance_to + balance_donated)
         if is_negative:
@@ -623,7 +623,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             role_data.get("cost")
         ) for role_data in config.SHOP_ROLE_LIST])
         msg: str
-        shop_title: str = strings.get("message_shop_title")
+        shop_title: str = strings.get("message_shop_title").format(strings.emoji_shop)
         shop_body: str = strings.get("message_shop_body").format(msg_roles, emoji)
         embed: Embed = Embed(
             colour=ctx.guild.get_member(self.bot.user.id).colour,
