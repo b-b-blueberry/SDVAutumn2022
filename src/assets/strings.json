@@ -93,6 +93,7 @@
   "error_roles_not_found": "You need one of these {1} to use this command: {0}",
   "error_user_not_found": "Couldn't find a user for '{0}'.",
   "error_string_not_found": "Couldn't find that string.",
+  "error_params_not_expected": "Mismatched command params! Here's the format:\n`{0}{1} {2}`",
 
   "emoji_list": [
     "emoji_submissions",

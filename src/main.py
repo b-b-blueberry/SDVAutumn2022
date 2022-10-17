@@ -116,6 +116,15 @@ class SBot(commands.Bot):
             elif isinstance(error, commands.errors.BadArgument):
                 # Suppress failed command parameters
                 reaction = strings.emoji_exclamation
+                req_fmt: str = "<{0}: {1}>"
+                opt_fmt: str = "[{0}: {1}]"
+                msg = strings.get("error_params_not_expected").format(
+                    ctx.clean_prefix,
+                    ctx.command.name,
+                    " ".join([(req_fmt if param.required else opt_fmt).format(
+                                param.name,
+                                " | ".join([s for i, s in enumerate(str(param.annotation).split("\'")) if i % 2]))
+                              for param in ctx.command.params.values()]))
             else:
                 if isinstance(error, TimeoutError):
                     # Send message on connection timeout
