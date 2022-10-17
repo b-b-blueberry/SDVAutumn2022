@@ -10,7 +10,7 @@ from discord import Member, User, PartialEmoji, Message, TextChannel, Guild, For
 from discord.abc import GuildChannel
 from discord.ext.commands import Context
 from config import CHANNEL_ROLES, ROLE_ADMIN
-from typing import Any, Union, List, Optional
+from typing import Union, List, Optional
 
 
 def format_roles_error(error: str, roles: List[str]) -> str:
@@ -46,15 +46,27 @@ def get_message_emojis(mesage: Message) -> typing.List[PartialEmoji]:
     emojis = re.findall('<(?P<animated>a?):(?P<name>[\w]{2,32}):(?P<id>[\d]{18,22})>', mesage.content)
     return [PartialEmoji(animated=bool(animated), name=name, id=id) for animated, name, id in emojis]
 
-def mention_to_id(mention: str) -> int:
+def mention_to_id(mention: [str, int]) -> int:
+    """
+    Strips mention formatting from a Discord ID.
+    :param mention: Discord ID or mention string.
+    :return: Discord ID as digits only.
+    """
     return int(re.sub("\D", "", mention))
 
 def query_channel(guild: Guild, query: str) -> Optional[GuildChannel]:
+    """
+    Converts a Discord channel ID or mention to a channel instance, if a visible matching channel exists.
+    :param guild:
+    :param query: Discord channel ID or mention.
+    :return: Channel instance, if found.
+    """
     return guild.get_channel(mention_to_id(query))
 
 async def get_guild_message(guild: Guild, message_id: int) -> Message:
     """
     Source: Governor by StardewValleyDiscord.
+
     Returns a message in a guild by querying individual channels.
     :param guild: Guild with channels to search in.
     :param message_id: Discord message ID to search for.
