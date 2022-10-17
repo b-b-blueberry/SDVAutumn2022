@@ -271,13 +271,13 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
     @commands.command(name=strings.get("command_name_balance_add"), hidden=True)
     @commands.check(requires_admin)
-    async def cmd_balance_set(self, ctx: Context, value: int, *, query: str = None) -> None:
+    async def cmd_balance_set(self, ctx: Context, query: str, value: int) -> None:
         """
         Add a value to a given user's balance, or to the author's balance if no user query is provided.
 
         Negative values will be deducted from their balance.
         :param ctx:
-        :param query: ID, mention, or name of user to set balance for.
+        :param query: Discord user ID, mention, or name to set balance for.
         :param value: Value to be added to balance.
         """
         msg: str
@@ -596,16 +596,21 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         """
         # Admin users will not be deducted their balance
         is_admin = check_roles(user=user_from, role_ids=[ROLE_ADMIN])
-        balance: int = db.get_balance_for(user_id=user_to.id)
-        balance_donated: int = min(balance, value) if not is_admin else value
-        msg_balance_key: str = "balance_responses_none" if balance_donated < 1 \
-            else "balance_responses_donated"
-        msg: str = strings.random(msg_balance_key).format(balance, user_to.mention)
-        # Add balance to target user
-        self._add_balance(guild_id=guild_id, user_id=user_to.id, value=balance_donated)
-        if not is_admin:
-            # Deduct balance from self user
-            self._add_balance(guild_id=guild_id, user_id=user_from.id, value=-balance_donated)
+        balance_from: int = db.get_balance_for(user_id=user_from.id)
+        balance_to: int = db.get_balance_for(user_id=user_to.id)
+        balance_donated: int = min(balance_from, value) if not is_admin else value
+        is_negative: bool = not is_admin and balance_donated < 1
+        
+        msg_balance_key: str = "balance_responses_too_low" if is_negative else "balance_responses_donated"
+        msg: str = strings.random(msg_balance_key).format(balance_donated, balance_from, user_to.mention, balance_to + balance_donated)
+        if is_negative:
+            value = 0
+        else:
+            # Add balance to target user
+            self._add_balance(guild_id=guild_id, user_id=user_to.id, value=balance_donated)
+            if not is_admin:
+                # Deduct balance from self user
+                self._add_balance(guild_id=guild_id, user_id=user_from.id, value=-balance_donated)
         return SCommands.SResponse(msg=msg, value=value)
 
     async def _do_update_shop(self, ctx: Context) -> str:

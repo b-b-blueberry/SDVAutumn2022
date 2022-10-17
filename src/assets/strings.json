@@ -181,10 +181,10 @@
     "You handed over **{0}** Star Tokens."
   ],
   "balance_responses_donated": [
-    "You donated **{0}** Star Tokens to {1}!",
-    "You gave **{0}** Star Tokens to {1}!",
-    "You gave away **{0}** Star Tokens to {1}!",
-    "You passed **{0}** Star Tokens to {1}!"
+    "You donated **{0}** of your {1} Star Tokens to {2}, bringing their balance up to **{3}**!",
+    "You gave **{0}** of your {1} Star Tokens to {2}, leaving them with **{3}**!",
+    "You gave away **{0}** of your {1} Star Tokens to {2}, who now has **{3}**!",
+    "You passed **{0}** of your {1} Star Tokens to {2}, boosting their balance to **{3}**!"
   ],
   "balance_responses_none": [
     "You don't have any Star Tokens…",
