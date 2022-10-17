@@ -27,6 +27,8 @@
   "commands_response_test_roles": "**Emoji  —  Role  —  Name  —  Cost**\n{0}",
   "commands_response_test_roles_format": "{0}\t{1}\t{2} — {3} Star Tokens",
   "commands_response_test_string": "{0}:\t{1}",
+  "commands_response_test_fish": "**Emoji  —  Score**\n{0}",
+  "commands_response_test_fish_format": "{0} — {1} Star Tokens",
 
   "command_list": [
     "command_name_wheel",
@@ -48,6 +50,7 @@
     "command_name_test_string",
     "command_name_test_emoji",
     "command_name_test_roles",
+    "command_name_test_fish",
     "command_name_reload",
     "command_name_sync"
   ],
@@ -64,6 +67,7 @@
   "command_name_test_string": "test_str",
   "command_name_test_emoji": "test_emoji",
   "command_name_test_roles": "test_roles",
+  "command_name_test_fish": "test_fish",
   "command_name_reload": "reload",
   "command_name_sync": "sync",
   "command_name_enabled": "enabled",

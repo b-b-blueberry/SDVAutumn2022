@@ -434,6 +434,19 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             for rd in config.SHOP_ROLE_LIST])
         await ctx.reply(content=strings.get("commands_response_test_roles").format(msg))
 
+    @commands.command(name=strings.get("command_name_test_fish"), hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_test_fish(self, ctx: Context) -> None:
+        """
+        Test fish emoji and scoring.
+        :param ctx:
+        """
+        msg: str = "\n".join([strings.get("commands_response_test_fish_format").format(
+            key if len(key) == 1 else utils.get(self.bot.emojis, name=key),
+            config.FISHING_SCOREBOARD[key])
+            for key in config.FISHING_SCOREBOARD.keys()])
+        await ctx.reply(content=strings.get("commands_response_test_fish").format(msg))
+
     @commands.command(name=strings.get("command_name_mesage_send"))
     @commands.check(requires_admin)
     async def cmd_send_message(self, ctx: Context, channel_id: int, *, content: str) -> None:
