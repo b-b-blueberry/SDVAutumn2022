@@ -786,12 +786,12 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                 await channel.send(content=response.msg, allowed_mentions=AllowedMentions(users=True))
 
     async def on_command_error(self, ctx: Context, error: Exception) -> None:
-        cmd: str = ctx.command.name
         msg: str = None
         if ctx.command is None:
             msg = strings.get("error_command_not_found")
         else:
             # Makes perfect sense
+            cmd: str = ctx.command.name
             cmd_internal_name: str = [s for s in strings.get("command_list") if strings.get(s) == cmd][0].split("_", 2)[-1]
             if isinstance(error, CommandOnCooldown):
                 msg = strings.random(f"{cmd_internal_name}_responses_cooldown")
