@@ -7,9 +7,10 @@ import re
 import typing
 
 from discord import Member, User, PartialEmoji, Message, TextChannel, Guild, Forbidden, NotFound
+from discord.abc import GuildChannel
 from discord.ext.commands import Context
 from config import CHANNEL_ROLES, ROLE_ADMIN
-from typing import Union, List
+from typing import Any, Union, List, Optional
 
 
 def format_roles_error(error: str, roles: List[str]) -> str:
@@ -44,6 +45,12 @@ def get_message_emojis(mesage: Message) -> typing.List[PartialEmoji]:
     """
     emojis = re.findall('<(?P<animated>a?):(?P<name>[\w]{2,32}):(?P<id>[\d]{18,22})>', mesage.content)
     return [PartialEmoji(animated=bool(animated), name=name, id=id) for animated, name, id in emojis]
+
+def mention_to_id(mention: str) -> int:
+    return int(re.sub("\D", "", mention))
+
+def query_channel(guild: Guild, query: str) -> Optional[GuildChannel]:
+    return guild.get_channel(mention_to_id(query))
 
 async def get_guild_message(guild: Guild, message_id: int) -> Message:
     """

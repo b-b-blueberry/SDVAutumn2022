@@ -12,6 +12,7 @@ from typing import Optional, List, Any, Dict
 
 from discord import Reaction, User, Message, Emoji, utils, Interaction, Role, Guild, ButtonStyle, Member, TextChannel, \
     AllowedMentions, Embed
+from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.ext.commands import Cog, Context, BucketType, UserConverter, BadArgument, CommandOnCooldown, Bot, \
     MissingRequiredArgument
@@ -22,7 +23,7 @@ import strings
 import db
 from config import FISHING_SCOREBOARD, ROLE_HELPER, ROLE_ADMIN, FISHING_BONUS_VALUE, FISHING_BONUS_CHANCE, \
     FISHING_HIGH_VALUE
-from utils import check_roles, requires_admin, get_guild_message
+from utils import check_roles, requires_admin, get_guild_message, query_channel
 
 """
 Contents:
@@ -447,21 +448,21 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             for key in config.FISHING_SCOREBOARD.keys()])
         await ctx.reply(content=strings.get("commands_response_test_fish").format(msg))
 
-    @commands.command(name=strings.get("command_name_mesage_send"))
+    @commands.command(name=strings.get("command_name_message_send"))
     @commands.check(requires_admin)
-    async def cmd_send_message(self, ctx: Context, channel_id: int, *, content: str) -> None:
+    async def cmd_send_message(self, ctx: Context, query: str, *, content: str) -> None:
         """
         Sends a message in a given channel.
         :param ctx:
-        :param channel_id: Discord channel ID to send a message in.
+        :param query: Query for Discord channel to send message in.
         :param content: Message content to send.
         :return:
         """
         if not content:
             content = " "
         content = content[:2000]
-        channel: TextChannel = self.bot.get_channel(channel_id)
-        if content and channel:
+        channel: GuildChannel = query_channel(guild=ctx.guild, query=query)
+        if content and isinstance(channel, TextChannel):
             message: Message = await channel.send(content=content)
             msg = strings.get("commands_response_send_success").format(
                 channel.mention,
