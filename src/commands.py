@@ -392,7 +392,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         await self.bot.reload_extension(name=config.PACKAGE_COMMANDS)
         await ctx.message.add_reaction(strings.emoji_confirm)
 
-    @commands.command(name=strings.get("command_name_string"), hidden=True)
+    @commands.command(name=strings.get("command_name_test_string"), hidden=True)
     @commands.check(requires_admin)
     async def cmd_test_string(self, ctx: Context, string: str) -> None:
         """
@@ -401,38 +401,38 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         :param string: Key of string in strings data file.
         """
         msg: str = strings.get(string)
-        await ctx.reply(content=strings.get("commands_response_str").format(string, msg)
+        await ctx.reply(content=strings.get("commands_response_test_string").format(string, msg)
                         if msg
                         else strings.get("error_string_not_found").format(string))
 
-    @commands.command(name=strings.get("command_name_emoji"), hidden=True)
+    @commands.command(name=strings.get("command_name_test_emoji"), hidden=True)
     @commands.check(requires_admin)
     async def cmd_test_emoji(self, ctx: Context) -> None:
         """
         Test emoji availability and visibility.
         :param ctx:
         """
-        msg: str = "\n".join([strings.get("commands_response_emoji_format").format(
+        msg: str = "\n".join([strings.get("commands_response_test_emoji_format").format(
             utils.get(self.bot.emojis, name=strings.get(e)),
             strings.get(e),
             e)
             for e in strings.get("emoji_list")])
-        await ctx.reply(content=strings.get("commands_response_emoji").format(msg))
+        await ctx.reply(content=strings.get("commands_response_test_emoji").format(msg))
 
-    @commands.command(name=strings.get("command_name_roles"), hidden=True)
+    @commands.command(name=strings.get("command_name_test_roles"), hidden=True)
     @commands.check(requires_admin)
     async def cmd_test_roles(self, ctx: Context) -> None:
         """
         Test role availability and visibility.
         :param ctx:
         """
-        msg: str = "\n".join([strings.get("commands_response_roles_format").format(
+        msg: str = "\n".join([strings.get("commands_response_test_roles_format").format(
             utils.get(self.bot.emojis, name=strings.get(f"emoji_{rd.get('name')}")),
             ctx.guild.get_role(rd.get("id")).mention,
             rd.get("name"),
             rd.get("cost"))
             for rd in config.SHOP_ROLE_LIST])
-        await ctx.reply(content=strings.get("commands_response_roles").format(msg))
+        await ctx.reply(content=strings.get("commands_response_test_roles").format(msg))
 
     @commands.command(name=strings.get("command_name_mesage_send"))
     @commands.check(requires_admin)
@@ -598,7 +598,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
     async def _do_update_shop(self, ctx: Context) -> str:
         message_id: int = db.get_shop_message_id(guild_id=ctx.guild.id)
         emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
-        msg_roles: str = "\n".join([strings.get("message_roles_format").format(
+        msg_roles: str = "\n".join([strings.get("message_shop_role").format(
             utils.get(self.bot.emojis, name=strings.get(f"emoji_{role_data.get('name')}")),
             ctx.guild.get_role(role_data.get("id")).mention,
             role_data.get("cost")

@@ -22,11 +22,11 @@
   "commands_response_send_failure": "Couldn't send that message.",
   "commands_response_edit_success": "Edited message in {0}:\n{1}",
   "commands_response_edit_failure": "Couldn't edit that message.",
-  "commands_response_emoji": "**Preview  —  Name  —  Key**\n{0}",
-  "commands_response_emoji_format": "{0}\t:{1}:\t{2}",
-  "commands_response_roles": "**Emoji  —  Role  —  Name  —  Cost**\n{0}",
-  "commands_response_roles_format": "{0}\t{1}\t{2} — {3} Star Tokens",
-  "commands_response_str": "{0}:\t{1}",
+  "commands_response_test_emoji": "**Preview  —  Name  —  Key**\n{0}",
+  "commands_response_test_emoji_format": "{0}\t:{1}:\t{2}",
+  "commands_response_test_roles": "**Emoji  —  Role  —  Name  —  Cost**\n{0}",
+  "commands_response_test_roles_format": "{0}\t{1}\t{2} — {3} Star Tokens",
+  "commands_response_test_string": "{0}:\t{1}",
 
   "command_list": [
     "command_name_wheel",
@@ -45,9 +45,9 @@
     "command_name_message_send",
     "command_name_message_edit",
     "command_name_shop_update",
-    "command_name_string",
-    "command_name_emoji",
-    "command_name_roles",
+    "command_name_test_string",
+    "command_name_test_emoji",
+    "command_name_test_roles",
     "command_name_reload",
     "command_name_sync"
   ],
@@ -61,9 +61,9 @@
   "command_name_message_send": "send",
   "command_name_message_edit": "edit",
   "command_name_shop_update": "shop",
-  "command_name_string": "str",
-  "command_name_emoji": "emoji",
-  "command_name_roles": "roles",
+  "command_name_test_string": "test_str",
+  "command_name_test_emoji": "test_emoji",
+  "command_name_test_roles": "test_roles",
   "command_name_reload": "reload",
   "command_name_sync": "sync",
   "command_name_enabled": "enabled",
@@ -131,7 +131,7 @@
 
   "message_shop_title": "**Roll up, roll up! It's the sideshow Star Token Shop!**",
   "message_shop_body": "Here you can exchange all your hard-earned Star Tokens for a handful of goodies. All your tokens and rewards will vanish after the event, so don't worry about saving up!\n\nFancy trying on a different colour for a change? Look no further, here you can trade in tokens for cooler(TM) role colours for the duration of the event!\nRoles collected from the shop are unique - trading in for a new role will replace any other shop roles… no refunds! This is to make sure you've always got the icon and colour you like.\n\nHere's the lowdown on the shop roles:\n\n{0}\n\n{1}\tTrade in your Star Tokens for prizes?",
-  "message_roles_format": "\t{0} {1} — **{2}** Star Tokens",
+  "message_shop_role": "\t{0} {1} — **{2}** Star Tokens",
 
   "shop_role_format": "{0} ({1})",
   "shop_responses_poor": [
