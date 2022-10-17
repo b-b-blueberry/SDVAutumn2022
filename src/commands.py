@@ -165,6 +165,14 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         Main bot instance.
         """
 
+        self.submission_session: List[int] = []
+        """
+        List of Discord message IDs that have been reacted to in the submission channels.
+        
+        A list sharing the lifetime of the bot session is fine here as messages sent outside of the session
+        have no effect on reactions, so we don't need to check whether a reaction was already added.
+        """
+
         self.fishing_session: Dict[int, List[int]] = {}
         """
         Map of Discord user IDs to message IDs they have reacted to in the fishing challenge.
@@ -627,9 +635,11 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         :param reaction: Reaction instance for a given emoji on the message.
         :param user: User reacting to the message.
         """
-        if not user.bot and check_roles(user=reaction.message.author, role_ids=[ROLE_ADMIN, ROLE_HELPER]):
+        if not user.bot and check_roles(user=reaction.message.author, role_ids=[ROLE_ADMIN, ROLE_HELPER]) \
+                and reaction.message.id not in self.submission_session:
             num_attachments: int = len(reaction.message.attachments)
             if num_attachments > 0:
+                self.submission_session.append(reaction.message.id)
                 is_art: bool = reaction.message.channel.id == config.CHANNEL_ART
                 balance_earned: int = config.SUBMISSION_ART_VALUE if is_art else config.SUBMISSION_FOOD_VALUE
                 balance_earned *= num_attachments
@@ -743,7 +753,6 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                 emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_submissions"))
                 msg = f"{emoji}\t{msg}"
                 await reaction.message.reply(content=msg)
-                return
 
         # Do fishing responses on staff messages
         if config.FISHING_ENABLED:
