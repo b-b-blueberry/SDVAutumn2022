@@ -673,59 +673,58 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         :param reaction: Reaction instance for a given emoji on the message.
         :param user: User reacting to the message.
         """
-        response: Optional[SCommands.SResponse] = None
-
         # Check fishing session to prevent users adding multiple reactions to the same message to cheat their balance
         fishing_user: List[int] = self.fishing_session.get(user.id, [])
-        if not user.bot and check_roles(user=reaction.message.author, role_ids=[ROLE_ADMIN, ROLE_HELPER]) \
-                and reaction.message.id not in fishing_user:
-            msg: str
-            balance_earned: int = 0
-            balance_bonus: int = 0
+        if reaction.message.id in fishing_user:
+            return
 
-            # Save interaction to fishing session
-            fishing_user.append(reaction.message.id)
-            self.fishing_session[user.id] = fishing_user
+        msg: str
+        balance_earned: int = 0
+        balance_bonus: int = 0
 
-            # Check if catch period has expired, converting to timezone-unaware times
-            time_now = datetime.datetime.now(tz=datetime.timezone.utc)
-            time_msg = reaction.message.created_at
-            time_period = datetime.timedelta(seconds=config.FISHING_DURATION_SECONDS)
-            time_delta = time_now - time_msg
-            if time_delta > time_period:
-                msg = strings.random("fishing_responses_timeout")
-            else:
-                # Sum the value of fish caught in this message
-                fish_caught: List[int] = [FISHING_SCOREBOARD[key] * reaction.message.content.count(key)
-                                          for key in FISHING_SCOREBOARD.keys()]
-                fish_value: int = sum(fish_caught)
-                is_catch: bool = fish_value > 0
+        # Save interaction to fishing session
+        fishing_user.append(reaction.message.id)
+        self.fishing_session[user.id] = fishing_user
 
-                if is_catch:
-                    # Add value of fish caught by this user to their balance
-                    random_range: int = 100
-                    random_result: int = random.randint(0, random_range)
-                    if random_result < FISHING_BONUS_CHANCE * random_range:
-                        balance_bonus = FISHING_BONUS_VALUE
-                    balance_earned = fish_value + balance_bonus
-                    self._add_balance(guild_id=reaction.message.guild.id, user_id=user.id, value=balance_earned)
+        # Check if catch period has expired, converting to timezone-unaware times
+        time_now = datetime.datetime.now(tz=datetime.timezone.utc)
+        time_msg = reaction.message.created_at
+        time_period = datetime.timedelta(seconds=config.FISHING_DURATION_SECONDS)
+        time_delta = time_now - time_msg
+        if time_delta > time_period:
+            msg = strings.random("fishing_responses_timeout")
+        else:
+            # Sum the value of fish caught in this message
+            fish_caught: List[int] = [FISHING_SCOREBOARD[key] * reaction.message.content.count(key)
+                                      for key in FISHING_SCOREBOARD.keys()]
+            fish_value: int = sum(fish_caught)
+            is_catch: bool = fish_value > 0
 
-                # Abandon the catch if message had no fish emoji
-                if not any(fish_caught):
-                    return
+            if is_catch:
+                # Add value of fish caught by this user to their balance
+                random_range: int = 100
+                random_result: int = random.randint(0, random_range)
+                if random_result < FISHING_BONUS_CHANCE * random_range:
+                    balance_bonus = FISHING_BONUS_VALUE
+                balance_earned = fish_value + balance_bonus
+                self._add_balance(guild_id=reaction.message.guild.id, user_id=user.id, value=balance_earned)
 
-                # Generate a reply message based on number or value of fish caught
-                response_key: str = "fishing_responses_none" if not is_catch \
-                    else "fishing_responses_value" if fish_value >= FISHING_HIGH_VALUE \
-                    else "fishing_responses_one" if len([count for count in fish_caught if count > 0]) == 1 \
-                    else "fishing_responses_many"
-                msg = strings.random(response_key)
-                if balance_bonus > 0:
-                    msg += f"\n{strings.random('fishing_responses_bonus')}"
+            # Abandon the catch if message had no fish emoji
+            if not any(fish_caught):
+                return
 
-            emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_fishing"))
-            msg = f"{emoji}{user.mention}\t{msg}"
-            response = SCommands.SResponse(msg=msg, value=balance_earned)
+            # Generate a reply message based on number or value of fish caught
+            response_key: str = "fishing_responses_none" if not is_catch \
+                else "fishing_responses_value" if fish_value >= FISHING_HIGH_VALUE \
+                else "fishing_responses_one" if len([count for count in fish_caught if count > 0]) == 1 \
+                else "fishing_responses_many"
+            msg = strings.random(response_key)
+            if balance_bonus > 0:
+                msg += f"\n{strings.random('fishing_responses_bonus')}"
+
+        emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_fishing"))
+        msg = f"{emoji}{user.mention}\t{msg}"
+        response: SCommands.SResponse = SCommands.SResponse(msg=msg, value=balance_earned)
 
         return response
 
@@ -734,10 +733,6 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         Generate a message as a reply to any users asking a generic question in visible text channels.
         :param message: Discord message to parse and create a reply to.
         """
-        # Ignore messages sent outside allowed channels
-        if message.author.bot or message.channel.id not in config.CHANNEL_COMMANDS:
-            return
-
         msg: str
         response: Optional[SCommands.SResponse] = None
         # Find questions in the message
@@ -761,15 +756,21 @@ class SCommands(Cog, name=config.COG_COMMANDS):
     # Event listeners
 
     async def on_message(self, message: Message) -> None:
-        # Do fortune teller responses on messages
-        if config.CRYSTALBALL_ENABLED:
+        if message.author.bot:
+            return
+
+        # Do bot responses on user messages in command channels
+        if config.CRYSTALBALL_ENABLED and message.channel.id in config.CHANNEL_COMMANDS:
             response: Optional[SCommands.SResponse] = await self._do_fortune_message(message=message)
             if response:
                 await message.reply(content=response.msg)
 
     async def on_reaction_add(self, reaction: Reaction, user: User) -> None:
-        # Do staff verification on submissions
-        if config.SUBMISSION_ENABLED:
+        if reaction.message.author.bot or user.bot:
+            return
+
+        # Do staff verification on user messages in submission channels
+        if config.SUBMISSION_ENABLED and reaction.message.channel.id in [config.CHANNEL_ART, config.CHANNEL_FOOD]:
             msg: str = await self._do_verification(reaction=reaction, user=user)
             if msg:
                 await reaction.message.add_reaction(strings.emoji_confirm)
@@ -777,8 +778,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                 msg = f"{emoji}\t{msg}"
                 await reaction.message.reply(content=msg)
 
-        # Do fishing responses on staff messages
-        if config.FISHING_ENABLED:
+        # Do fishing responses on staff messages in any channels
+        if config.FISHING_ENABLED and check_roles(user=reaction.message.author, role_ids=[ROLE_ADMIN, ROLE_HELPER]):
             response: Optional[SCommands.SResponse] = await self._do_fishing(reaction=reaction, user=user)
             if response:
                 channel: TextChannel = self.bot.get_channel(config.CHANNEL_FISHING)
