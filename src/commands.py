@@ -654,7 +654,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         :param reaction: Reaction instance for a given emoji on the message.
         :param user: User reacting to the message.
         """
-        if not user.bot and check_roles(user=reaction.message.author, role_ids=[ROLE_ADMIN, ROLE_HELPER]) \
+        if check_roles(user=user, role_ids=[ROLE_ADMIN, ROLE_HELPER]) \
                 and reaction.message.id not in self.submission_session:
             num_attachments: int = len(reaction.message.attachments)
             if num_attachments > 0:
