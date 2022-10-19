@@ -690,7 +690,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                 self.submission_session.append(reaction.message.id)
                 is_art: bool = reaction.message.channel.id == config.CHANNEL_ART
                 balance_earned: int = config.SUBMISSION_ART_VALUE if is_art else config.SUBMISSION_FOOD_VALUE
-                self._add_balance(guild_id=reaction.message.guild.id, user_id=user.id, value=balance_earned)
+                self._add_balance(guild_id=reaction.message.guild.id, user_id=reaction.message.author.id, value=balance_earned)
                 msg_key: str = "submission_responses_art" if is_art else "submission_responses_food"
                 msg: str = strings.random(msg_key).format(balance_earned)
                 return msg
