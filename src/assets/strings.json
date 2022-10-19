@@ -225,13 +225,17 @@
     "Thanks for the wonderful art! You've earned **{0}** Star Tokens.",
     "Beautiful art! You've won **{0}** Star Tokens.",
     "Thanks for submitting! Here's **{0}** Star Tokens as a prize.",
-    "Lovely! Have **{0}** Star Tokens as a treat."
+    "Lovely! Have **{0}** Star Tokens as a treat.",
+    "Thanks for the seasonal submission! Here's your **{0}** Star Tokens."
   ],
   "submission_responses_food": [
     "Thanks for the takeaway lunch! You've earned **{0}** Star Tokens.",
     "Looks delicious! You've won **{0}** Star Tokens.",
     "Thanks for submitting! Here's **{0}** Star Tokens as a prize.",
-    "Lovely! Have **{0}** Star Tokens as a treat."
+    "Lovely! Have **{0}** Star Tokens as a treat.",
+    "Thanks for the seasonal submission! Here's your **{0}** Star Tokens.",
+    "Amazing autumn treats! You've earned your **{0}** Star Tokens.",
+    "Fantastic fall foods! Have another **{0}** Star Tokens from us."
   ],
   "fishing_responses_none": [
     "You cast your line, but nothing bit.",
