@@ -686,12 +686,10 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         """
         if check_roles(user=user, role_ids=[ROLE_ADMIN, ROLE_HELPER]) \
                 and reaction.message.id not in self.submission_session:
-            num_attachments: int = len(reaction.message.attachments)
-            if num_attachments > 0:
+            if any(reaction.message.attachments) or any(reaction.message.embeds):
                 self.submission_session.append(reaction.message.id)
                 is_art: bool = reaction.message.channel.id == config.CHANNEL_ART
                 balance_earned: int = config.SUBMISSION_ART_VALUE if is_art else config.SUBMISSION_FOOD_VALUE
-                balance_earned *= num_attachments
                 self._add_balance(guild_id=reaction.message.guild.id, user_id=user.id, value=balance_earned)
                 msg_key: str = "submission_responses_art" if is_art else "submission_responses_food"
                 msg: str = strings.random(msg_key).format(balance_earned)
