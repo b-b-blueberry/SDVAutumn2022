@@ -37,6 +37,7 @@
     "command_name_balance_get",
     "command_name_balance_add",
     "command_name_earnings",
+    "command_name_award",
     "command_name_enabled",
     "command_name_enable_submission",
     "command_name_enable_fishing",
@@ -61,6 +62,7 @@
   "command_name_balance_get": "tokens",
   "command_name_balance_add": "donate",
   "command_name_earnings": "earnings",
+  "command_name_award": "award",
   "command_name_message_send": "send",
   "command_name_message_edit": "edit",
   "command_name_shop_update": "shop",
@@ -93,7 +95,7 @@
   "error_roles_not_found": "You need one of these {1} to use this command: {0}",
   "error_user_not_found": "Couldn't find a user for '{0}'.",
   "error_string_not_found": "Couldn't find that string.",
-  "error_params_not_expected": "Mismatched command params! Here's the format:\n`{0}{1} {2}`",
+  "error_params_not_expected": "Couldn't read those values! Here's the format:\n`{0}{1} {2}`",
 
   "emoji_list": [
     "emoji_submissions",
@@ -209,6 +211,15 @@
     "{1} has a total of **{0}** Star Tokens.",
     "{1} has gathered as many as **{0}** Star Tokens.",
     "{1} has played their way to **{0}** Star Tokens."
+  ],
+  "award_responses": [
+    "{1} just received **{0}** Star Tokens!",
+    "{1} was awarded **{0}** Star Tokens!",
+    "{1} gained **{0}** Star Tokens!",
+    "{1} got a bonus **{0}** Star Tokens!",
+    "{1} just earned **{0}** Star Tokens!",
+    "{1} was just given **{0}** Star Tokens!",
+    "{1} was rewarded with **{0}** Star Tokens!"
   ],
   "submission_responses_art": [
     "Thanks for the wonderful art! You've earned **{0}** Star Tokens.",
