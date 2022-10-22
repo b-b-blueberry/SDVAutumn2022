@@ -224,7 +224,13 @@ class SCommands(Cog, name=config.COG_COMMANDS):
     @commands.command(name=strings.get("command_name_wheel"))
     @commands.check(_is_enabled)
     @commands.cooldown(rate=config.WHEEL_USE_RATE, per=config.WHEEL_USE_PER, type=BucketType.user)
-    async def cmd_wheel(self, ctx: Context, query: str, value: int) -> None:
+    async def cmd_wheel(self, ctx: Context, colour: str, value: int) -> None:
+        """
+        Roll a colour, either orange or green, for a 50-50 chance to double or lose your bet.
+        :param ctx:
+        :param colour: The colour to wager will win.
+        :param value: The amount to wager.
+        """
         if not config.WHEEL_ENABLED:
             return
         msg: str
@@ -232,7 +238,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         if balance_current < value:
             msg = strings.random("shop_responses_poor").format(value - balance_current)
         else:
-            query_clean: str = query.strip().lower()
+            query_clean: str = colour.strip().lower()
             is_green: bool = query_clean.startswith("g") or query_clean.startswith("b")
             is_orange: bool = query_clean.startswith("o") or query_clean.startswith("r")
             if not is_green and not is_orange:
@@ -249,17 +255,19 @@ class SCommands(Cog, name=config.COG_COMMANDS):
     @commands.check(_is_enabled)
     @commands.cooldown(rate=config.FORTUNE_USE_RATE, per=config.FORTUNE_USE_PER, type=BucketType.user)
     async def cmd_fortune(self, ctx: Context) -> None:
+        """
+        Not implemented.
+        """
         if not config.FORTUNE_ENABLED:
             return
-        response: SCommands.SResponse = self._do_fortune_command(user_id=ctx.author.id)
-        if response.value != 0:
-            response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
-        await ctx.reply(content=response.msg)
 
     @commands.command(name=strings.get("command_name_strength"))
     @commands.check(_is_enabled)
     @commands.cooldown(rate=config.STRENGTH_USE_RATE, per=config.STRENGTH_USE_PER, type=BucketType.user)
     async def cmd_strength(self, ctx: Context) -> None:
+        """
+        Roll for a score at the Strength Test game, with an award based on the result.
+        """
         if not config.STRENGTH_ENABLED:
             return
         response: SCommands.SResponse = self._do_strength(guild_id=ctx.guild.id, user_id=ctx.author.id)
@@ -268,14 +276,19 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         await ctx.reply(content=response.msg)
 
     @commands.command(name=strings.get("command_name_balance_get"))
-    async def cmd_balance_get(self, ctx: Context, query: str = None) -> None:
+    async def cmd_balance_get(self, ctx: Context, user_query: str = None) -> None:
+        """
+        Get your current balance, or another user by ID.
+        :param ctx:
+        :param user_query: Discord user ID, mention, or name to get balance for.
+        """
         msg: str
         try:
-            if not query:
-                query = ctx.author.id
+            if not user_query:
+                user_query = ctx.author.id
             user: User = await UserConverter().convert(
                 ctx=ctx,
-                argument=str(query).strip())
+                argument=str(user_query).strip())
             response: SCommands.SResponse = self._do_balance_get(author=ctx.author, user=user)
             emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
             msg = f"{emoji}\t{response.msg}"
@@ -287,18 +300,18 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
     @commands.command(name=strings.get("command_name_balance_add"))
     @commands.check(requires_admin)
-    async def cmd_balance_set(self, ctx: Context, query: str, value: int) -> None:
+    async def cmd_balance_set(self, ctx: Context, user_query: str, value: int) -> None:
         """
-        Add a value to a given user's balance, deducting the same amount from the author's balance.
+        Take an amount from your balance to give to another user.
         :param ctx:
-        :param query: Discord user ID, mention, or name to set balance for.
+        :param user_query: Discord user ID, mention, or name to set balance for.
         :param value: Value to be added to balance.
         """
         msg: str
         try:
             user: User = await UserConverter().convert(
                 ctx=ctx,
-                argument=str(query).strip())
+                argument=str(user_query).strip())
             response: SCommands.SResponse = self._do_balance_set(guild_id=ctx.guild.id, user_from=ctx.author, user_to=user, value=value)
             emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
             msg = f"{emoji}\t{response.msg}"
@@ -308,20 +321,20 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
     @commands.command(name=strings.get("command_name_award"))
     @commands.check(requires_admin)
-    async def cmd_award(self, ctx: Context, query: str, value: int) -> None:
+    async def cmd_award(self, ctx: Context, user_query: str, value: int) -> None:
         """
-        Add a value to a given user's balance.
+        Give an amount to another user's balance.
 
         Negative values will be deducted from their balance.
         :param ctx:
-        :param query: Discord user ID, mention, or name to set balance for.
+        :param user_query: Discord user ID, mention, or name to set balance for.
         :param value: Value to be added to balance.
         """
         msg: str
         try:
             user: User = await UserConverter().convert(
                 ctx=ctx,
-                argument=str(query).strip())
+                argument=str(user_query).strip())
             response: SCommands.SResponse = self._do_award(guild_id=ctx.guild.id, user=user, value=value)
             emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
             msg = f"{emoji}\t{response.msg}"
@@ -539,16 +552,11 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
     # Command implementations
 
-    def _do_fortune_command(self, user_id: int) -> SResponse:
+    def _do_fortune_command(self, user_id: int) -> None:
         """
-        ???
+        Not implemented.
         :param user_id: Discord user ID for a given user.
         """
-        response: str = ""
-        emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_fortune"))
-        msg: str = f"{emoji}\t{response}"
-        response: SCommands.SResponse = SCommands.SResponse(msg=msg, value=config.FORTUNE_USE_VALUE)
-        return response
 
     def _do_strength(self, guild_id: int, user_id: int) -> SResponse:
         """
