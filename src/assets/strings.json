@@ -29,6 +29,7 @@
   "commands_response_test_string": "{0}:\t{1}",
   "commands_response_test_fish": "**Emoji  —  Score**\n{0}",
   "commands_response_test_fish_format": "{0} — {1} Star Tokens",
+  "commands_response_params_format": "{0} {1}",
 
   "command_list": [
     "command_name_wheel",
@@ -95,7 +96,12 @@
   "error_roles_not_found": "You need one of these {1} to use this command: {0}",
   "error_user_not_found": "Couldn't find a user for '{0}'.",
   "error_string_not_found": "Couldn't find that string.",
-  "error_params_not_expected": "Couldn't read those values! Here's the format:\n`{0}{1} {2}`",
+  "error_params_not_expected": "Couldn't read those values! Here's the format:\n`{0}{1}`",
+
+  "help_title": "Welcome to the SDV Autumn event!",
+  "help_content": "You can currently use these commands:\n\n{0}",
+  "help_command_format": "•⠀`{0}`\n⠀⠀{1}",
+  "help_command_admin_format": "★⠀`{0}`\n⠀⠀ {1}",
 
   "emoji_list": [
     "emoji_submissions",

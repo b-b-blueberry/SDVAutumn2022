@@ -15,7 +15,7 @@ from discord import Reaction, User, Message, Emoji, utils, Interaction, Role, Gu
 from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.ext.commands import Cog, Context, BucketType, UserConverter, BadArgument, CommandOnCooldown, Bot, \
-    MissingRequiredArgument
+    MissingRequiredArgument, Command
 from discord.ui import View, Button
 
 import config
@@ -27,26 +27,38 @@ from utils import check_roles, requires_admin, get_guild_message, query_channel
 
 """
 Contents:
-    SCommands
-        Classes
-            SShopView
-            SShopButton
-            SResponse
-        Init
-        Command utils
-        Default user commands
-        Admin commands
-        Command implementations
-        Event implementations
-        Event listeners
+    Command checks
+    Commands
+        SCommands
+            Classes
+                SShopView
+                SShopButton
+                SResponse
+            Init
+            Command utils
+            Default user commands
+            Admin commands
+            Command implementations
+            Event implementations
+            Event listeners
     Discord.py boilerplate
 """
+
+
+# Command checks
+
+
+def _is_enabled(ctx: Context):
+    return (ctx.command.name != strings.get("command_name_wheel") or config.WHEEL_ENABLED) \
+           and (ctx.command.name != strings.get("command_name_strength") or config.STRENGTH_ENABLED) \
+           and (ctx.command.name != strings.get("command_name_fortune") or config.FORTUNE_ENABLED)
 
 
 # Commands
 
 
 class SCommands(Cog, name=config.COG_COMMANDS):
+
     # Classes
 
     class SShopView(View):
@@ -210,6 +222,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
     # Default user commands
 
     @commands.command(name=strings.get("command_name_wheel"))
+    @commands.check(_is_enabled)
     @commands.cooldown(rate=config.WHEEL_USE_RATE, per=config.WHEEL_USE_PER, type=BucketType.user)
     async def cmd_wheel(self, ctx: Context, query: str, value: int) -> None:
         if not config.WHEEL_ENABLED:
@@ -233,6 +246,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         await ctx.reply(content=msg)
 
     @commands.command(name=strings.get("command_name_fortune"))
+    @commands.check(_is_enabled)
     @commands.cooldown(rate=config.FORTUNE_USE_RATE, per=config.FORTUNE_USE_PER, type=BucketType.user)
     async def cmd_fortune(self, ctx: Context) -> None:
         if not config.FORTUNE_ENABLED:
@@ -243,6 +257,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         await ctx.reply(content=response.msg)
 
     @commands.command(name=strings.get("command_name_strength"))
+    @commands.check(_is_enabled)
     @commands.cooldown(rate=config.STRENGTH_USE_RATE, per=config.STRENGTH_USE_PER, type=BucketType.user)
     async def cmd_strength(self, ctx: Context) -> None:
         if not config.STRENGTH_ENABLED:
@@ -467,7 +482,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             for key in config.FISHING_SCOREBOARD.keys()])
         await ctx.reply(content=strings.get("commands_response_test_fish").format(msg))
 
-    @commands.command(name=strings.get("command_name_message_send"))
+    @commands.command(name=strings.get("command_name_message_send"), hidden=True)
     @commands.check(requires_admin)
     async def cmd_send_message(self, ctx: Context, query: str, *, content: str) -> None:
         """
@@ -490,7 +505,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             msg = strings.get("commands_response_send_failure")
         await ctx.reply(content=msg)
 
-    @commands.command(name=strings.get("command_name_message_edit"))
+    @commands.command(name=strings.get("command_name_message_edit"), hidden=True)
     @commands.check(requires_admin)
     async def cmd_edit_message(self, ctx: Context, message_id: int, *, content: str) -> None:
         """
@@ -513,7 +528,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             msg = strings.get("commands_response_edit_failure")
         await ctx.reply(content=msg)
 
-    @commands.command(name=strings.get("command_name_shop_update"))
+    @commands.command(name=strings.get("command_name_shop_update"), hidden=True)
     @commands.check(requires_admin)
     async def cmd_update_shop(self, ctx: Context) -> None:
         """

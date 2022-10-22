@@ -6,11 +6,14 @@
 import re
 import typing
 
-from discord import Member, User, PartialEmoji, Message, TextChannel, Guild, Forbidden, NotFound
+import discord
+from discord import Member, User, PartialEmoji, Message, TextChannel, Guild, Forbidden, NotFound, Embed, Emoji
 from discord.abc import GuildChannel
-from discord.ext.commands import Context
+from discord.ext.commands import Context, Command, Bot
 from config import CHANNEL_ROLES, ROLE_ADMIN
-from typing import Union, List, Optional
+from typing import Any, List, Optional, Union
+
+import strings
 
 
 def format_roles_error(error: str, roles: List[str]) -> str:
@@ -45,6 +48,37 @@ def get_message_emojis(mesage: Message) -> typing.List[PartialEmoji]:
     """
     emojis = re.findall('<(?P<animated>a?):(?P<name>[\w]{2,32}):(?P<id>[\d]{18,22})>', mesage.content)
     return [PartialEmoji(animated=bool(animated), name=name, id=id) for animated, name, id in emojis]
+
+def get_help_message(guild: Guild, bot: Bot, commands: Any) -> Embed:
+    emoji: Emoji = discord.utils.get(bot.emojis, name=strings.get("emoji_leaf"))
+    embed_title = f"{emoji}\t{strings.get('help_title')}"
+    embed_description: str = "\n".join(
+        sorted([strings.get("help_command_format"
+                            if not any(check.__name__ == requires_admin.__name__ for check in command.checks)
+                            else "help_command_admin_format").format(
+            command_signature_to_string(command=command),
+            command.help.split("\n")[0] if command.help else ""
+        ) for command in commands]))
+    embed: Embed = Embed(
+        title=embed_title,
+        description=strings.get("help_content").format(embed_description),
+        colour=guild.get_member(bot.user.id).colour)
+    thumbnail_url: str = discord.utils.get(bot.emojis, name=strings.get("emoji_puffer")).url
+    if thumbnail_url:
+        embed.set_thumbnail(url=thumbnail_url)
+    return embed
+
+def command_signature_to_string(command: Command) -> str:
+    string: str = command.name if not any(command.params) \
+        else strings.get("commands_response_params_format").format(
+            command.name,
+            " ".join([("<{0}: {1}>" if param.required else "[{0}: {1}]").format(
+                param.name,
+                " | ".join([s for i, s in enumerate(str(param.annotation).split("\'")) if i % 2])
+                if "\'" in str(param.annotation)
+                else str(param.annotation))
+                for param in command.params.values()]))
+    return string
 
 def mention_to_id(mention: [str, int]) -> int:
     """

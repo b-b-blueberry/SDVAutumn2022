@@ -6,11 +6,11 @@
 import asyncio
 import logging
 from logging.handlers import RotatingFileHandler
-from typing import Optional
+from typing import Optional, Any, List
 
 from discord import AllowedMentions, Guild
 from discord.ext import commands
-from discord.ext.commands import Context
+from discord.ext.commands import Context, HelpCommand
 from importlib import reload
 
 import config
@@ -26,6 +26,11 @@ Contents:
     Logging
     Bot definition
         SBot
+            Help commands
+                SHelpCommand
+            Init
+            Bot events
+            Bot utilities
     Init
     Global commands
     Discord.py boilerplate
@@ -54,15 +59,52 @@ class SBot(commands.Bot):
     Bot used for Stardew Valley Discord 2022 Sideshow event.
     Includes methods for updating and reloading commands and strings during runtime.
     """
+
+    # Help commands
+
+    class SHelpCommand(HelpCommand):
+        """
+        Override of HelpCommand to show currently-enabled commands.
+        """
+
+        async def send_bot_help(self, ctx: Context) -> None:
+            await self._send_help()
+
+        async def send_cog_help(self, cog: commands.Cog) -> None:
+            await self._send_help()
+
+        async def send_group_help(self, group: commands.Group) -> None:
+            await self._send_help()
+
+        async def send_command_help(self, command: commands.Command) -> None:
+            await self._send_help()
+
+        async def _send_help(self) -> None:
+            command_list: List[Any] = [command for command in self.context.bot.commands
+                                       if await command.can_run(self.context)
+                                       and not command.hidden
+                                       and not command.name == "help"]
+            embed = utils.get_help_message(
+                guild=self.context.guild,
+                bot=self.context.bot,
+                commands=command_list)
+            if embed:
+                await self.get_destination().send(embed=embed)
+
+    # Init
+
     def __init__(self):
         super().__init__(
             command_prefix=COMMAND_PREFIX,
             intents=DISCORD_INTENTS,
             description=strings.get("client_description"),
             allowed_mentions=AllowedMentions.none())
+        self.help_command = self.SHelpCommand()
 
         self.db = db
         """Bot database instance."""
+
+    # Bot events
 
     async def setup_hook(self):
         """
@@ -84,21 +126,6 @@ class SBot(commands.Bot):
             self.user.id)
         print(msg)
 
-    async def sync_guild(self, guild: Guild):
-        """
-        Syncs app commands from this bot with the remote Discord state when required to apply changes.
-        :param guild: Discord guild to sync commands with.
-        """
-        self.tree.copy_global_to(guild=guild)
-        await self.tree.sync(guild=guild)
-
-    def reload_strings(self) -> None:
-        """
-        Reloads all text strings from data file for bot commands and interactions.
-        """
-        reload(strings)
-        reload(utils)
-
     async def on_command_error(self, ctx: Context, error: Exception) -> None:
         """
         Additional behaviours on errors using commands to either suppress, react, or reply.
@@ -116,15 +143,9 @@ class SBot(commands.Bot):
             elif isinstance(error, commands.errors.BadArgument):
                 # Suppress failed command parameters
                 reaction = strings.emoji_exclamation
-                req_fmt: str = "<{0}: {1}>"
-                opt_fmt: str = "[{0}: {1}]"
                 msg = strings.get("error_params_not_expected").format(
                     ctx.clean_prefix,
-                    ctx.command.name,
-                    " ".join([(req_fmt if param.required else opt_fmt).format(
-                                param.name,
-                                " | ".join([s for i, s in enumerate(str(param.annotation).split("\'")) if i % 2]))
-                              for param in ctx.command.params.values()]))
+                    utils.command_signature_to_string(command=ctx.command))
             else:
                 if isinstance(error, TimeoutError):
                     # Send message on connection timeout
@@ -138,6 +159,23 @@ class SBot(commands.Bot):
             if reaction:
                 await ctx.message.add_reaction(reaction)
 
+    # Bot utilities
+
+    async def sync_guild(self, guild: Guild):
+        """
+        Syncs app commands from this bot with the remote Discord state when required to apply changes.
+        :param guild: Discord guild to sync commands with.
+        """
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
+
+    def reload_strings(self) -> None:
+        """
+        Reloads all text strings from data file for bot commands and interactions.
+        """
+        reload(strings)
+        reload(utils)
+
 
 # Init
 
@@ -147,7 +185,7 @@ bot = SBot()
 
 # Global commands
 
-@bot.command(name="ping")
+@bot.command(name="ping", hidden=True)
 async def cmd_ping(ctx: Context):
     await ctx.reply(content="pong")
 
