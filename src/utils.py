@@ -16,6 +16,13 @@ from typing import Any, List, Optional, Union
 import strings
 
 
+class CheckFailureQuietly(discord.ext.commands.CheckFailure):
+    """
+    Override for check failure error for specific error handling.
+    """
+    pass
+
+
 def format_roles_error(error: str, roles: List[str]) -> str:
     """
     :param error: Unformatted error message.

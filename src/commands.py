@@ -23,7 +23,7 @@ import strings
 import db
 from config import FISHING_SCOREBOARD, ROLE_HELPER, ROLE_ADMIN, FISHING_BONUS_VALUE, FISHING_BONUS_CHANCE, \
     FISHING_HIGH_VALUE
-from utils import check_roles, requires_admin, get_guild_message, query_channel
+from utils import check_roles, requires_admin, get_guild_message, query_channel, CheckFailureQuietly
 
 """
 Contents:
@@ -837,7 +837,10 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         else:
             # Makes perfect sense
             cmd: str = ctx.command.name
-            cmd_internal_name: str = [s for s in strings.get("command_list") if strings.get(s) == cmd][0].split("_", 2)[-1]
+            cmd_str: List[str] = [s for s in strings.get("command_list") if strings.get(s) == cmd]
+            cmd_internal_name: str = cmd_str[0].split("_", 2)[-1] if any(cmd_str) and "_" in cmd_str[0] else cmd_str
+            if isinstance(error, CheckFailureQuietly):
+                return
             if isinstance(error, CommandOnCooldown):
                 msg = strings.random(f"{cmd_internal_name}_responses_cooldown")
             if isinstance(error, MissingRequiredArgument):

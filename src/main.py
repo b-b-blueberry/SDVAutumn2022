@@ -19,7 +19,7 @@ import err
 import strings
 import utils
 from config import COMMAND_PREFIX, EXTENSIONS, DISCORD_INTENTS, ROLE_ADMIN, ROLE_HELPER
-from utils import check_roles
+from utils import check_roles, CheckFailureQuietly
 
 """
 Contents:
@@ -134,7 +134,10 @@ class SBot(commands.Bot):
         msg: Optional[str] = None
         reaction: Optional[str] = None
         try:
-            if isinstance(error, commands.CheckFailure):
+            if isinstance(error, CheckFailureQuietly):
+                # Quietly suppress certain failed command checks
+                return
+            elif isinstance(error, commands.CheckFailure):
                 # Suppress failed command checks
                 reaction = strings.emoji_error
             elif isinstance(error, commands.errors.CommandNotFound):
@@ -200,7 +203,10 @@ async def is_valid_command_use(ctx: Context) -> bool:
     # Ignore commands from channels other than the designated text channel (except admin commands used by admins)
     is_channel_ok: bool = ctx.channel.id in config.CHANNEL_COMMANDS or check_roles(ctx.author, [ROLE_ADMIN, ROLE_HELPER])
 
-    return is_not_bot and is_channel_ok
+    if not is_not_bot or not is_channel_ok:
+        raise CheckFailureQuietly()
+
+    return True
 
 
 # Discord.py boilerplate
