@@ -372,7 +372,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             strings.get("commands_response_enable_fishing").format(strings.on_off(config.FISHING_ENABLED)),
             strings.get("commands_response_enable_fortune").format(strings.on_off(config.FORTUNE_ENABLED)),
             strings.get("commands_response_enable_strength").format(strings.on_off(config.STRENGTH_ENABLED)),
-            strings.get("commands_response_enable_wheel").format(strings.on_off(config.WHEEL_ENABLED))
+            strings.get("commands_response_enable_wheel").format(strings.on_off(config.WHEEL_ENABLED)),
+            strings.get("commands_response_enable_crystalball").format(strings.on_off(config.CRYSTALBALL_ENABLED))
         ])
         await ctx.reply(content=strings.get("commands_response_enabled").format(msg))
 
