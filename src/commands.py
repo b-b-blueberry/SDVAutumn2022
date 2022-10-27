@@ -16,13 +16,13 @@ from discord import Reaction, User, Message, Emoji, utils, Interaction, Role, Gu
 from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.ext.commands import Cog, Context, BucketType, UserConverter, BadArgument, CommandOnCooldown, Bot, \
-    MissingRequiredArgument, Command
+    MissingRequiredArgument
 from discord.ui import View, Button
 
 import config
 import strings
 import db
-from config import FISHING_SCOREBOARD, ROLE_HELPER, ROLE_ADMIN, FISHING_BONUS_VALUE, FISHING_BONUS_CHANCE, \
+from config import cfg, FISHING_SCOREBOARD, ROLE_HELPER, ROLE_ADMIN, FISHING_BONUS_VALUE, FISHING_BONUS_CHANCE, \
     FISHING_HIGH_VALUE
 from utils import check_roles, requires_admin, get_guild_message, query_channel, CheckFailureQuietly
 
@@ -559,7 +559,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         """
         msg: str
         config_json: dict = config.cfg
-        config_json["discord"] = "".join(["*" for c in cfg["discord"])
+        config_json["discord"] = "".join(["*" for _ in cfg["discord"]])
         msg = f"```json\n{json.dumps(config_json, indent=4)[:1900]}\n```"
         await ctx.reply(content=msg)
 
