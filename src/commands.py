@@ -4,6 +4,7 @@
 # https://github.com/StardewValleyDiscord/SDVAutumn2022
 
 import datetime
+import json
 import logging
 import random
 from importlib import reload
@@ -296,10 +297,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             msg = strings.get("commands_error_user")
         await ctx.reply(content=msg)
 
-    # Admin commands
-
     @commands.command(name=strings.get("command_name_balance_add"))
-    @commands.check(requires_admin)
     async def cmd_balance_set(self, ctx: Context, user_query: str, value: int) -> None:
         """
         Take an amount from your balance to give to another user.
@@ -318,6 +316,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         except BadArgument:
             msg = strings.get("commands_error_user")
         await ctx.reply(content=msg)
+
+    # Admin commands
 
     @commands.command(name=strings.get("command_name_award"))
     @commands.check(requires_admin)
@@ -371,7 +371,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             strings.get("commands_response_enable_fishing").format(strings.on_off(config.FISHING_ENABLED)),
             strings.get("commands_response_enable_fortune").format(strings.on_off(config.FORTUNE_ENABLED)),
             strings.get("commands_response_enable_strength").format(strings.on_off(config.STRENGTH_ENABLED)),
-            strings.get("commands_response_enable_wheel").format(strings.on_off(config.WHEEL_ENABLED))
+            strings.get("commands_response_enable_wheel").format(strings.on_off(config.WHEEL_ENABLED)),
+            strings.get("commands_response_enable_crystalball").format(strings.on_off(config.CRYSTALBALL_ENABLED))
         ])
         await ctx.reply(content=strings.get("commands_response_enabled").format(msg))
 
@@ -548,6 +549,18 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         Generates and sends persistent Shop message in the configured channel.
         """
         msg: str = await self._do_update_shop(ctx=ctx)
+        await ctx.reply(content=msg)
+
+    @commands.command(name="config", hidden=True)
+    @commands.check(requires_admin)
+    async def cmd_print_config(self, ctx: Context) -> None:
+        """
+        Send a message with the contents of the config file.
+        """
+        msg: str
+        config_json: dict = config.cfg
+        config_json["discord"] = "".join(["*" for c in cfg["discord"])
+        msg = f"```json\n{json.dumps(config_json, indent=4)[:1900]}\n```"
         await ctx.reply(content=msg)
 
     # Command implementations
