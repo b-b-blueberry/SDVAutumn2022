@@ -236,7 +236,9 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             return
         msg: str
         balance_current: int = db.get_balance_for(user_id=ctx.author.id)
-        if balance_current < value:
+        if value <= 0:
+            raise BadArgument()
+        elif balance_current < value:
             msg = strings.random("shop_responses_poor").format(value - balance_current)
         else:
             query_clean: str = colour.strip().lower()
