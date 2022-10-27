@@ -296,10 +296,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             msg = strings.get("commands_error_user")
         await ctx.reply(content=msg)
 
-    # Admin commands
-
     @commands.command(name=strings.get("command_name_balance_add"))
-    @commands.check(requires_admin)
     async def cmd_balance_set(self, ctx: Context, user_query: str, value: int) -> None:
         """
         Take an amount from your balance to give to another user.
@@ -318,6 +315,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         except BadArgument:
             msg = strings.get("commands_error_user")
         await ctx.reply(content=msg)
+
+    # Admin commands
 
     @commands.command(name=strings.get("command_name_award"))
     @commands.check(requires_admin)
