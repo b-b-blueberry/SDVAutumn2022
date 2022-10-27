@@ -243,6 +243,7 @@
     "Amazing autumn treats! You've earned your **{0}** Star Tokens.",
     "Fantastic fall foods! Have another **{0}** Star Tokens from us."
   ],
+  "fishing_response_format": "**{1}**: {2}\n{0}",
   "fishing_responses_none": [
     "You cast your line, but nothing bit.",
     "Nothing going.",
@@ -256,7 +257,14 @@
     "You snagged a fish!",
     "There's a fish on the line!",
     "There's a bite!",
-    "Score!"
+    "Scored a fish! It's a big one, too!",
+    "You reel in the fish with ease!",
+    "You skillfully reeled in the fish!",
+    "You draw in your net, filled with fresh fish!",
+    "You've caught a quality fish!",
+    "You've made a great catch!",
+    "It's a great catch!",
+    "Fish floundered!"
   ],
   "fishing_responses_many": [
     "It's a haul!",
@@ -268,6 +276,16 @@
     "It's a big catch!",
     "It's a record catch!",
     "It's a huge catch!"
+  ],
+  "fishing_responses_summary": [
+    "Today's fish",
+    "Fish of the day",
+    "Your catch",
+    "You caught",
+    "Your net",
+    "You scored",
+    "Today's catch",
+    "Scooped up"
   ],
   "fishing_responses_bonus": [
     "You find a pearl in your catch.",

@@ -737,39 +737,48 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         fishing_user.append(reaction.message.id)
         self.fishing_session[user.id] = fishing_user
 
+        # Sum the value of fish caught in this message
+        fish_scores: Dict[str, int] = {
+            key: FISHING_SCOREBOARD[key] * reaction.message.content.count(key)
+            for key in FISHING_SCOREBOARD.keys()
+        }
+        fish_value: int = sum(fish_scores.values())
+        is_catch: bool = fish_value > 0
+
+        # Ignore the catch if message had no fish emoji
+        if all(value == 0 for value in fish_scores.values()):
+            return
+
         # Check if catch period has expired, converting to timezone-unaware times
         time_now = datetime.datetime.now(tz=datetime.timezone.utc)
         time_msg = reaction.message.created_at
         time_period = datetime.timedelta(seconds=config.FISHING_DURATION_SECONDS)
         time_delta = time_now - time_msg
-        if time_delta > time_period:
+
+        if not is_catch:
+            # Abandon a valueless catch
+            msg = strings.random("fishing_responses_none")
+        elif time_delta > time_period:
+            # Abandon a valuable catch if the catch period has expired
             msg = strings.random("fishing_responses_timeout")
         else:
-            # Sum the value of fish caught in this message
-            fish_caught: List[int] = [FISHING_SCOREBOARD[key] * reaction.message.content.count(key)
-                                      for key in FISHING_SCOREBOARD.keys()]
-            fish_value: int = sum(fish_caught)
-            is_catch: bool = fish_value > 0
-
-            if is_catch:
-                # Add value of fish caught by this user to their balance
-                random_range: int = 100
-                random_result: int = random.randint(0, random_range)
-                if random_result < FISHING_BONUS_CHANCE * random_range:
-                    balance_bonus = FISHING_BONUS_VALUE
-                balance_earned = fish_value + balance_bonus
-                self._add_balance(guild_id=reaction.message.guild.id, user_id=user.id, value=balance_earned)
-
-            # Abandon the catch if message had no fish emoji
-            if not any(fish_caught):
-                return
+            # Otherwise add value of fish caught by this user to their balance
+            random_range: int = 100
+            random_result: int = random.randint(0, random_range)
+            if random_result < FISHING_BONUS_CHANCE * random_range:
+                balance_bonus = FISHING_BONUS_VALUE
+            balance_earned = fish_value + balance_bonus
+            self._add_balance(guild_id=reaction.message.guild.id, user_id=user.id, value=balance_earned)
 
             # Generate a reply message based on number or value of fish caught
-            response_key: str = "fishing_responses_none" if not is_catch \
-                else "fishing_responses_value" if fish_value >= FISHING_HIGH_VALUE \
-                else "fishing_responses_one" if len([count for count in fish_caught if count > 0]) == 1 \
+            response_key: str = "fishing_responses_value" if fish_value >= FISHING_HIGH_VALUE \
+                else "fishing_responses_one" if len([count for count in fish_scores.values() if count > 0]) == 1 \
                 else "fishing_responses_many"
-            msg = strings.random(response_key)
+            msg = strings.get("fishing_response_format").format(
+                strings.random(response_key),
+                strings.random("fishing_responses_summary"),
+                " ".join([fish if len(fish) == 1 else str(utils.get(self.bot.emojis, name=fish)) for fish in fish_scores
+                          if fish_scores[fish] > 0]))
             if balance_bonus > 0:
                 msg += f"\n{strings.random('fishing_responses_bonus')}"
 
