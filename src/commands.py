@@ -753,9 +753,13 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         self.fishing_session[user.id] = fishing_user
 
         # Sum the value of fish caught in this message
+        fish_counts: Dict[str, int] = {
+            fish: reaction.message.content.count(fish)
+            for fish in FISHING_SCOREBOARD.keys()
+        }
         fish_scores: Dict[str, int] = {
-            key: FISHING_SCOREBOARD[key] * reaction.message.content.count(key)
-            for key in FISHING_SCOREBOARD.keys()
+            fish: FISHING_SCOREBOARD[fish] * fish_counts[fish]
+            for fish in fish_counts.keys()
         }
         fish_value: int = sum(fish_scores.values())
         is_catch: bool = fish_value > 0
@@ -787,13 +791,14 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
             # Generate a reply message based on number or value of fish caught
             response_key: str = "fishing_responses_value" if fish_value >= FISHING_HIGH_VALUE \
-                else "fishing_responses_one" if len([count for count in fish_scores.values() if count > 0]) == 1 \
+                else "fishing_responses_one" if len([count for count in fish_counts.values() if count > 0]) == 1 \
                 else "fishing_responses_many"
             msg = strings.get("fishing_response_format").format(
                 strings.random(response_key),
                 strings.random("fishing_responses_summary"),
-                " ".join([fish if len(fish) == 1 else str(utils.get(self.bot.emojis, name=fish)) for fish in fish_scores
-                          if fish_scores[fish] > 0]))
+                " ".join([fish_counts[fish] * (fish if len(fish) == 1 else str(utils.get(self.bot.emojis, name=fish)))
+                          for fish in fish_counts
+                          if fish_counts[fish] > 0]))
             if balance_bonus > 0:
                 msg += f"\n{strings.random('fishing_responses_bonus')}"
 
