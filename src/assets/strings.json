@@ -36,6 +36,7 @@
   "commands_response_logs": "Log files for process started at `{0}` UTC\nEarlier logs may have been overwritten.\nCheck the datemarks in the leading column when reading log files.",
   "commands_response_logs_none": "Log files for process started at `{0}` UTC\nNo log files were found.",
   "commands_response_config": "Config file for process started at `{0}` UTC",
+  "commands_response_db": "Database file for process started at `{0}` UTC",
   "commands_response_update_avatar": "Updated avatar to {0}.\nHere's my original display picture:",
   "commands_response_update_username": "Updated username to `{0}`, previously `{1}`",
 
@@ -78,6 +79,7 @@
   "command_name_sync": "sync",
   "command_name_send_logs": "logs",
   "command_name_send_config": "config",
+  "command_name_send_db": "database",
   "command_name_update_avatar": "avatar",
   "command_name_update_username": "username",
 

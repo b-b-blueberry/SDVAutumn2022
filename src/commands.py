@@ -667,6 +667,17 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             self.bot.start_time.strftime(strings.get("datetime_format_uptime")))
         await ctx.reply(content=msg, file=config_file)
 
+    @commands.command(name=strings.get("command_name_send_db"), aliases=["db"])
+    @commands.check(requires_admin)
+    async def cmd_send_db(self, ctx: Context) -> None:
+        """
+        Send a message with the contents of the database file.
+        """
+        db_file: File = File(config.PATH_DATABASE)
+        msg: str = strings.get("commands_response_db").format(
+            self.bot.start_time.strftime(strings.get("datetime_format_uptime")))
+        await ctx.reply(content=msg, file=db_file)
+
     @commands.command(name=strings.get("command_name_update_avatar"))
     @commands.check(requires_admin)
     async def cmd_update_avatar(self, ctx: Context) -> None:
