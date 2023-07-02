@@ -11,7 +11,7 @@ from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from typing import Optional, Any, List
 
-from discord import AllowedMentions, Guild, Interaction, Message
+from discord import AllowedMentions, Guild, Interaction, Message, app_commands
 from discord.ext import commands
 from discord.ext.commands import Context, HelpCommand
 from importlib import reload
@@ -215,6 +215,7 @@ bot = SBot()
 
 
 @bot.tree.context_menu(name=strings.get("app_name_award"))
+@app_commands.checks.has_any_role(ROLE_ADMIN, ROLE_HELPER)
 async def cmd_app_award(interaction: Interaction, message: Message):
     await bot.get_cog(config.COG_COMMANDS).do_award_command(interaction, message)
 
