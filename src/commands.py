@@ -306,6 +306,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             user: User = await UserConverter().convert(
                 ctx=ctx,
                 argument=str(user_query).strip())
+            if user.bot:
+                raise BadArgument()
             response: SCommands.SResponse = self._do_balance_set(
                 guild_id=ctx.guild.id,
                 user_from=ctx.author,
@@ -336,6 +338,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             user: User = await UserConverter().convert(
                 ctx=ctx,
                 argument=str(user_query).strip())
+            if user.bot:
+                raise BadArgument()
             response: SCommands.SResponse = self._do_award(
                 guild_id=ctx.guild.id,
                 user=user,
@@ -411,6 +415,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             user: User = await UserConverter().convert(
                 ctx=ctx,
                 argument=str(user_query).strip())
+            if user.bot:
+                raise BadArgument()
             user_entry: db.DBUser = db.get_user(user_id=user.id)
             if any(user_entry.submitted_channels):
                 msg = strings.get("commands_response_submissions_get").format(
@@ -443,6 +449,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             user: User = await UserConverter().convert(
                 ctx=ctx,
                 argument=str(user_query).strip())
+            if user.bot:
+                raise BadArgument()
             user_entry: db.DBUser = db.get_user(user_id=user.id)
             msg = strings.get("commands_response_picross_get").format(
                 user.mention,
@@ -734,10 +742,13 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             # Reject if submissions are disabled in config
             msg_rejected = strings.get("submission_disabled")
         elif message.channel.id not in _get_submission_data().keys():
-            # Awards can only be given in submission channels
+            # Reject if award not given in submission channel
             msg_rejected = strings.get("submission_bad_channel").format(
                 config.COMMAND_PREFIX,
                 strings.get("command_name_award"))
+        elif message.author.bot:
+            # Reject if message author is bot
+            msg_rejected = strings.get("submission_no_award")
         else:
             user_entry: db.DBUser = db.get_user(user_id=message.author.id)
             if message.channel.id in user_entry.submitted_channels:
@@ -926,6 +937,10 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
     async def on_message(self, message: Message) -> None:
         msg: str = None
+
+        # Ignore bot messages
+        if message.author.bot:
+            return
 
         # Handle secret submissions in submission channels
         submission_data: Dict[int, int] = _get_secret_submission_data()
