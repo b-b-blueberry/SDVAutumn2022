@@ -458,7 +458,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
     @commands.check(requires_admin)
     async def cmd_forget_submissions(self, ctx: Context, user_query: str) -> None:
         """
-        Forgets all user submissions, allowing them to be awarded in all channels.
+        Forgets all user submissions, re-allowing awards in all channels.
         :param ctx:
         :param user_query: Discord user ID, mention, or name to forget submissions from.
         """
