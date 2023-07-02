@@ -287,7 +287,7 @@
   "submission_verify_response": "{1} {0}",
   "submission_verify_title": "{0} posted in #{1}",
   "submission_verify_success": "{0}\n\n{5} {1} awarded {2} \uD83E\uDE99 **{3}** Coines for their **{4}** Picross puzzle.",
-  "submission_verify_cancel": "{0}\n\n{3} {1} rejected {2}'s submission.",
+  "submission_verify_cancel": "{2} {0} rejected {1}'s submission.",
   "submission_verify_confirmation_responses": [
     "{2} {1} was awarded \uD83E\uDE99 **{0}** Coines.",
     "{2} {1} earned \uD83E\uDE99 **{0}** Coines.",

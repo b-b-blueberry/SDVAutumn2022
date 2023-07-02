@@ -175,11 +175,12 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         async def callback(self, interaction: Interaction):
             # Update verify message
             embed: Embed = interaction.message.embeds[0]
-            embed.description = strings.get("submission_verify_cancel").format(
-                embed.description,
-                interaction.user.mention,
-                self.submission_author.mention,
-                strings.emoji_cancel
+            embed.description = \
+                (f"{embed.description}\n\n" if embed.description else "") \
+                + strings.get("submission_verify_cancel").format(
+                    interaction.user.mention,
+                    self.submission_author.mention,
+                    strings.emoji_cancel
             )
             await self.view.fold_embed(interaction=interaction, embed=embed)
 
