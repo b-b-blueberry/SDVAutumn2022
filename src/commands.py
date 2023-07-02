@@ -756,7 +756,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                 msg_rejected = strings.get("submission_duplicate").format(
                     message.author.mention)
             else:
-                msg_verified = self._do_verification(message=message, user=interaction.user)
+                msg_verified = self._do_verification(message=message)
                 if not msg_verified:
                     # Reject if failed to verify
                     msg_rejected = strings.get("submission_no_award")
@@ -907,14 +907,13 @@ class SCommands(Cog, name=config.COG_COMMANDS):
 
         return msg
 
-    def _do_verification(self, message: Message, user: User) -> Optional[str]:
+    def _do_verification(self, message: Message) -> Optional[str]:
         """
         Staff reactions to posts with attachments in the submissions channel will add to the author's balance.
         :param message: Interaction message instance.
-        :param user: User verifying the message.
         """
         guild_entry: db.DBGuild = db.get_guild(guild_id=message.guild.id)
-        user_entry: db.DBUser = db.get_user(user_id=user.id)
+        user_entry: db.DBUser = db.get_user(user_id=message.author.id)
         if message.channel.id not in user_entry.submitted_channels:
             submission_data: Dict[int, Tuple] = _get_submission_data()
             balance_earned: int
@@ -1013,6 +1012,7 @@ def _get_submission_data() -> Dict[int, Tuple]:
         config.CHANNEL_SUBMIT_DECOR: (config.SUBMISSION_VALUE_DECOR, "submission_responses_decor"),
         config.CHANNEL_SUBMIT_HATS: (config.SUBMISSION_VALUE_HATS, "submission_responses_hats"),
     }
+
 def _make_ordinal(n):
     """
     Florian Brucker - https://stackoverflow.com/a/50992575
@@ -1031,6 +1031,7 @@ def _make_ordinal(n):
     else:
         suffix = ['th', 'st', 'nd', 'rd', 'th'][min(n % 10, 4)]
     return str(n) + suffix
+
 
 # Discord.py boilerplate
 
