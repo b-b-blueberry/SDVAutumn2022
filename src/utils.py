@@ -57,7 +57,7 @@ def get_message_emojis(mesage: Message) -> typing.List[PartialEmoji]:
     return [PartialEmoji(animated=bool(animated), name=name, id=id) for animated, name, id in emojis]
 
 def get_help_message(guild: Guild, bot: Bot, commands: Any) -> Embed:
-    emoji: Emoji = discord.utils.get(bot.emojis, name=strings.get("emoji_leaf"))
+    emoji: Emoji = discord.utils.get(bot.emojis, name=strings.get(strings.random("emoji_list")))
     embed_title = f"{emoji}\t{strings.get('help_title')}"
     embed_description: str = "\n".join(
         sorted([strings.get("help_command_format"
@@ -70,7 +70,7 @@ def get_help_message(guild: Guild, bot: Bot, commands: Any) -> Embed:
         title=embed_title,
         description=strings.get("help_content").format(embed_description),
         colour=guild.get_member(bot.user.id).colour)
-    thumbnail_url: str = discord.utils.get(bot.emojis, name=strings.get("emoji_puffer")).url
+    thumbnail_url: str = discord.utils.get(bot.emojis, name=strings.get("emoji_shop")).url
     if thumbnail_url:
         embed.set_thumbnail(url=thumbnail_url)
     return embed

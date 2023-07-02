@@ -3,7 +3,8 @@
 # Written by blueberry et al., 2022
 # https://github.com/StardewValleyDiscord/SDVAutumn2022
 
-from typing import List, Dict
+import os
+from typing import List
 
 import discord
 import json
@@ -22,12 +23,14 @@ Contents:
 
 # Runtime
 
-PATH_CONFIG: str = "./private/config-bb.json"
+LOG_DIR: str = "./private/logs"
+"""Relative path to temporary folder used to store session logs."""
+PATH_CONFIG: str = "./private/config.json"
 """Relative path to data file used for bot configuration."""
-PATH_DATABASE: str = "./private/autumn-bb.db"
+PATH_DATABASE: str = "./private/2023-summer.db"
 """Relative path to database file used to store usage history."""
 PATH_STRINGS: str = "./assets/strings.json"
-PATH_LOG: str = "./private/discord.log"
+PATH_LOG: str = os.path.join(LOG_DIR, "discord.log")
 
 # Parse config file
 with open(file=PATH_CONFIG, mode="r", encoding="utf8") as config_file:
@@ -69,10 +72,15 @@ ROLE_ADMIN: int = cfg["roles"]["admin"]
 
 CHANNEL_COMMANDS: List[int] = cfg["channels"]["commands"]
 CHANNEL_SHOP: int = cfg["channels"]["shop"]
-CHANNEL_ART: int = cfg["channels"]["art"]
-CHANNEL_FOOD: int = cfg["channels"]["food"]
-CHANNEL_FISHING: int = cfg["channels"]["fishing"]
 CHANNEL_ROLES: List[int] = cfg["channels"]["roles"]
+
+CHANNEL_SUBMIT_ART: int = cfg["channels"]["submit_art"]
+CHANNEL_SUBMIT_MODS: int = cfg["channels"]["submit_mods"]
+CHANNEL_SUBMIT_WRITING: int = cfg["channels"]["submit_writing"]
+CHANNEL_SUBMIT_DECOR: int = cfg["channels"]["submit_decor"]
+CHANNEL_SUBMIT_HATS: int = cfg["channels"]["submit_hats"]
+CHANNEL_SUBMIT_PICROSS: int = cfg["channels"]["submit_picross"]
+CHANNEL_VERIFY_PICROSS: int = cfg["channels"]["verify_picross"]
 
 # Balance
 
@@ -81,45 +89,17 @@ STARTING_BALANCE: int = cfg["balance"]["starting_balance"]
 # Submissions
 
 SUBMISSION_ENABLED: bool = cfg["submissions"]["enabled"]
-SUBMISSION_ART_VALUE: int = cfg["submissions"]["art_value"]
-SUBMISSION_FOOD_VALUE: int = cfg["submissions"]["food_value"]
+SUBMISSION_VALUE_ART: int = cfg["submissions"]["value_art"]
+SUBMISSION_VALUE_MODS: int = cfg["submissions"]["value_mods"]
+SUBMISSION_VALUE_WRITING: int = cfg["submissions"]["value_writing"]
+SUBMISSION_VALUE_DECOR: int = cfg["submissions"]["value_decor"]
+SUBMISSION_VALUE_HATS: int = cfg["submissions"]["value_hats"]
 
-# Fishing challenge
+# Picross
 
-FISHING_ENABLED: bool = cfg["fishing"]["enabled"]
-FISHING_BONUS_CHANCE: float = cfg["fishing"]["bonus_chance"]
-FISHING_BONUS_VALUE: int = cfg["fishing"]["bonus_value"]
-FISHING_HIGH_VALUE: int = cfg["fishing"]["high_value"]
-FISHING_DURATION_SECONDS: int = cfg["fishing"]["duration_seconds"]
-FISHING_SCOREBOARD: Dict[str, int] = cfg["fishing"]["scoreboard"]
-
-# Fortune teller
-
-FORTUNE_ENABLED: bool = cfg["fortune"]["enabled"]
-FORTUNE_USE_PER: int = cfg["fortune"]["use_per"]
-FORTUNE_USE_RATE: int = cfg["fortune"]["use_rate"]
-FORTUNE_USE_VALUE: int = cfg["fortune"]["use_value"]
-
-# Strength test
-
-STRENGTH_ENABLED: bool = cfg["strength"]["enabled"]
-STRENGTH_USE_PER: int = cfg["strength"]["use_per"]
-STRENGTH_USE_RATE: int = cfg["strength"]["use_rate"]
-STRENGTH_BONUS_VALUE: int = cfg["strength"]["bonus_value"]
-STRENGTH_MAX_VALUE: int = cfg["strength"]["max_value"]
-
-# Wheel
-
-WHEEL_ENABLED: bool = cfg["wheel"]["enabled"]
-WHEEL_USE_PER: int = cfg["wheel"]["use_per"]
-WHEEL_USE_RATE: int = cfg["wheel"]["use_rate"]
-WHEEL_WIN_CHANCE: float = cfg["wheel"]["win_chance"]
-
-# Crystal ball
-
-CRYSTALBALL_ENABLED: bool = cfg["crystalball"]["enabled"]
+PICROSS_AWARDS: List[dict] = sorted(cfg["picross"]["awards"], key=lambda entry: entry.get("value"))
 
 # Shop
 
-SHOP_ROLE_LIST: List[dict] = sorted(cfg["shop"]["role_list"], key=lambda rd: rd.get("cost"))
+SHOP_ROLE_LIST: List[dict] = sorted(cfg["shop"]["role_list"], key=lambda entry: entry.get("cost"))
 

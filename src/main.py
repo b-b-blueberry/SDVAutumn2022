@@ -5,10 +5,13 @@
 
 import asyncio
 import logging
+import os
+import shutil
+from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from typing import Optional, Any, List
 
-from discord import AllowedMentions, Guild
+from discord import AllowedMentions, Guild, Interaction, Message
 from discord.ext import commands
 from discord.ext.commands import Context, HelpCommand
 from importlib import reload
@@ -37,9 +40,23 @@ Contents:
 """
 
 
+# Utilities
+
+
+def _clear_temp_folders() -> None:
+    try:
+        fp: str = config.LOG_DIR
+        if os.path.exists(fp):
+            shutil.rmtree(fp)
+        os.mkdir(fp)
+    except Exception as error:
+        err.log(error)
+
+
 # Logging
 
 
+_clear_temp_folders()
 logger: logging.Logger = logging.getLogger("discord")
 handler: RotatingFileHandler = RotatingFileHandler(
     filename=config.PATH_LOG,
@@ -47,6 +64,11 @@ handler: RotatingFileHandler = RotatingFileHandler(
     maxBytes=int(config.LOG_SIZE_MEBIBYTES * 1024 * 1024),
     backupCount=config.LOG_BACKUP_COUNT
 )
+formatter: logging.Formatter = logging.Formatter(
+    fmt=strings.get("log_format"),
+    datefmt=strings.get("datetime_format_log")
+)
+handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
@@ -103,6 +125,8 @@ class SBot(commands.Bot):
 
         self.db = db
         """Bot database instance."""
+        self.start_time = datetime.utcnow()
+        """Timestamp for bot runtime."""
 
     # Bot events
 
@@ -186,7 +210,17 @@ class SBot(commands.Bot):
 bot = SBot()
 """Main instance of the bot."""
 
+
+# Context commands
+
+
+@bot.tree.context_menu(name=strings.get("app_name_award"))
+async def cmd_app_award(interaction: Interaction, message: Message):
+    await bot.get_cog(config.COG_COMMANDS).do_award_command(interaction, message)
+
+
 # Global commands
+
 
 @bot.command(name="ping", hidden=True)
 async def cmd_ping(ctx: Context):

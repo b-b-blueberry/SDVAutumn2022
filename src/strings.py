@@ -3,6 +3,12 @@
 # Written by blueberry et al., 2022
 # https://github.com/StardewValleyDiscord/SDVAutumn2022
 
+"""
+References:
+    http://www.unicode.org/Public/UCD/latest/ucd/NamesList.txt
+    https://unicode.org/emoji/charts/full-emoji-list.html
+"""
+
 import json
 import random as rand
 from typing import Optional, Any
@@ -24,9 +30,12 @@ def on_off(_value: Optional[Any]) -> str:
 
 emoji_confirm = "\N{WHITE HEAVY CHECK MARK}"
 emoji_cancel = "\N{CROSS MARK}"
+emoji_cancel_inverted = "\N{HEAVY MULTIPLICATION X}"
 emoji_error = "\N{CROSS MARK}"
 emoji_exclamation = "\N{WHITE EXCLAMATION MARK ORNAMENT}"
 emoji_question = "\N{WHITE QUESTION MARK ORNAMENT}"
 emoji_connection = "\N{ANTENNA WITH BARS}"
-emoji_explosion = "\N{COLLISION SYMBOL}"
 emoji_shop = "\N{SHOPPING BAGS}"
+emoji_house = "\N{DERELICT HOUSE BUILDING}"
+emoji_memo = "\N{MEMO}"
+emoji_coin = "🪙"

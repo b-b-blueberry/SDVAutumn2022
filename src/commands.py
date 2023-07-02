@@ -3,56 +3,48 @@
 # Written by blueberry et al., 2022
 # https://github.com/StardewValleyDiscord/SDVAutumn2022
 
-import datetime
 import json
 import logging
-import random
+import os
+import re
+from datetime import datetime
 from importlib import reload
-from math import ceil, floor
-from typing import Optional, List, Any, Dict
+from io import StringIO
+from typing import Optional, List, Any, Dict, Tuple, Union
 
-from discord import Reaction, User, Message, Emoji, utils, Interaction, Role, Guild, ButtonStyle, Member, TextChannel, \
-    AllowedMentions, Embed
+import discord.utils
+from discord import User, Message, Emoji, utils, Interaction, Role, Guild, ButtonStyle, Member, TextChannel, Embed, \
+    HTTPException, ui, File, Attachment, Colour
 from discord.abc import GuildChannel
 from discord.ext import commands
-from discord.ext.commands import Cog, Context, BucketType, UserConverter, BadArgument, CommandOnCooldown, Bot, \
+from discord.ext.commands import Cog, Context, UserConverter, BadArgument, CommandOnCooldown, Bot, \
     MissingRequiredArgument
 from discord.ui import View, Button
 
 import config
 import strings
 import db
-from config import cfg, FISHING_SCOREBOARD, ROLE_HELPER, ROLE_ADMIN, FISHING_BONUS_VALUE, FISHING_BONUS_CHANCE, \
-    FISHING_HIGH_VALUE
-from utils import check_roles, requires_admin, get_guild_message, query_channel, CheckFailureQuietly
+from utils import requires_admin, get_guild_message, query_channel, CheckFailureQuietly, check_roles
 
 """
 Contents:
-    Command checks
     Commands
         SCommands
             Classes
                 SShopView
                 SShopButton
                 SResponse
+                SVerifyButton
+                SVerifyView
             Init
-            Command utils
             Default user commands
             Admin commands
             Command implementations
             Event implementations
             Event listeners
+    Command utils
     Discord.py boilerplate
 """
-
-
-# Command checks
-
-
-def _is_enabled(ctx: Context):
-    return (ctx.command.name != strings.get("command_name_wheel") or config.WHEEL_ENABLED) \
-           and (ctx.command.name != strings.get("command_name_strength") or config.STRENGTH_ENABLED) \
-           and (ctx.command.name != strings.get("command_name_fortune") or config.FORTUNE_ENABLED)
 
 
 # Commands
@@ -73,7 +65,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             super().__init__(timeout=None)
 
             # Add shop buttons for up to 10 roles
-            for (i, role_data) in enumerate(config.SHOP_ROLE_LIST):
+            for i, role_data in enumerate(config.SHOP_ROLE_LIST):
                 role_id: int = role_data.get("id")
                 role: Role = guild.get_role(role_id)
                 button: SCommands.SShopButton = SCommands.SShopButton(
@@ -110,21 +102,22 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             """
             msg: str = None
             cost: int = 0
-            balance_current: int = db.get_balance_for(user_id=interaction.user.id)
+            user_entry: db.DBUser = db.get_user(user_id=interaction.user.id)
 
             # Handle different rows of buttons with different behaviours
             if self._is_role_button():
                 cost = self._get_role_data().get("cost")
-                if cost <= balance_current:
+                if cost <= user_entry.balance:
                     msg = await self._do_purchase_role(member=interaction.user)
 
             if not msg:
                 # If no reply message is set, assume the user couldn't afford the shop offer
-                msg = strings.random("shop_responses_poor").format(cost - balance_current)
+                msg = strings.random("shop_responses_poor").format(cost - user_entry.balance)
             elif cost > 0:
                 # Deduct cost from user's balance
-                db.set_balance_for(user_id=interaction.user.id, value=balance_current - cost)
-                msg_purchased: str = strings.random("shop_responses_purchase").format(cost, balance_current - cost)
+                user_entry.balance -= cost
+                db.update_user(entry=user_entry)
+                msg_purchased: str = strings.random("shop_responses_purchase").format(cost, user_entry.balance)
                 msg += f"\n{msg_purchased}"
 
             # Send user-only response depending on purchase and success
@@ -169,6 +162,103 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             self.value: int = value
             """Value added to user's balance from within command."""
 
+    class SVerifyRejectButton(ui.Button):
+        def __init__(self, *, submission_author: User, submission_channel: TextChannel):
+            self.submission_channel: TextChannel = submission_channel
+            self.submission_author: User = submission_author
+
+            super().__init__(
+                style=ButtonStyle.danger,
+                emoji=strings.emoji_cancel_inverted
+            )
+
+        async def callback(self, interaction: Interaction):
+            # Update verify message
+            embed: Embed = interaction.message.embeds[0]
+            embed.description = strings.get("submission_verify_cancel").format(
+                embed.description,
+                interaction.user.mention,
+                self.submission_author.mention,
+                strings.emoji_cancel
+            )
+            await self.view.fold_embed(interaction=interaction, embed=embed)
+
+            # Send rejection message in secret submission channel
+            await self.submission_channel.send(content=strings.get("submission_verify_response").format(
+                self.submission_author.mention,
+                strings.emoji_cancel
+            ))
+
+    class SVerifyButton(ui.Button):
+        def __init__(self, *, award_index: int, submission_author: User, submission_channel: TextChannel):
+            self.submission_channel: TextChannel = submission_channel
+            self.submission_author: User = submission_author
+            self.award_index: int = award_index
+            award_data: dict = self.get_award_data()
+
+            super().__init__(
+                label=str(award_data["value"]),
+                style=ButtonStyle.primary,
+                emoji=strings.emoji_coin
+            )
+
+        async def callback(self, interaction: Interaction):
+            guild_entry: db.DBGuild = db.get_guild(guild_id=interaction.guild_id)
+            user_entry: db.DBUser = db.get_user(user_id=self.submission_author.id)
+
+            # Use face value for award for consistency, otherwise query config value
+            award_value: int = int(self.label) if str.isnumeric(self.label) else self.get_award_data()["value"]
+
+            # Award user with tokens
+            _add_balance(guild_entry=guild_entry, user_entry=user_entry, value=award_value)
+
+            # Update verify message
+            embed: Embed = interaction.message.embeds[0]
+            user_entry: db.DBUser = db.get_user(user_id=self.submission_author.id)
+            user_entry.picross_count += 1
+            db.update_user(user_entry)
+            embed.description = strings.get("submission_verify_success").format(
+                embed.description,
+                interaction.user.mention,
+                self.submission_author.mention,
+                award_value,
+                _make_ordinal(user_entry.picross_count),
+                strings.emoji_confirm
+            )
+            await self.view.fold_embed(interaction=interaction, embed=embed)
+
+            # Send confirmation message in secret submission channel
+            await self.submission_channel.send(content=strings.random("submission_verify_confirmation_responses").format(
+                award_value,
+                self.submission_author.mention,
+                strings.emoji_confirm
+            ))
+
+        def get_award_data(self) -> dict:
+            for entry in config.PICROSS_AWARDS:
+                if entry["response_index"] == self.award_index:
+                    return entry
+
+    class SVerifyView(ui.View):
+        def __init__(self, *, submission_author: User, submission_channel: TextChannel):
+            super().__init__(timeout=0)
+
+            for entry in config.PICROSS_AWARDS:
+                self.add_item(SCommands.SVerifyButton(
+                    award_index=entry["response_index"],
+                    submission_author=submission_author,
+                    submission_channel=submission_channel))
+            self.add_item(SCommands.SVerifyRejectButton(
+                submission_author=submission_author,
+                submission_channel=submission_channel))
+
+        async def fold_embed(self, interaction: Interaction, embed: Embed):
+            # Clear verification message of buttons and images
+            self.clear_items()
+            embed.set_image(url=None)
+            await interaction.message.edit(content=interaction.message.content, embed=embed, view=self)
+            await interaction.response.defer()
+
     # Init
 
     def __init__(self, bot: Bot):
@@ -179,104 +269,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         Main bot instance.
         """
 
-        self.submission_session: List[int] = []
-        """
-        List of Discord message IDs that have been reacted to in the submission channels.
-        
-        A list sharing the lifetime of the bot session is fine here as messages sent outside of the session
-        have no effect on reactions, so we don't need to check whether a reaction was already added.
-        """
-
-        self.fishing_session: Dict[int, List[int]] = {}
-        """
-        Map of Discord user IDs to message IDs they have reacted to in the fishing challenge.
-        
-        A map sharing the lifetime of the bot session is fine here as messages sent outside of the session
-        have no effect on reactions, so we don't need to check whether a reaction was already added.
-        """
-
-    # Command utils
-
-    def _log_admin(self, msg_key: str, user: User, value: Any = None):
-        msg: str = strings.get(msg_key).format(
-            user.name,
-            user.discriminator,
-            user.id,
-            value)
-        print(msg)
-        logger: logging.Logger = logging.getLogger("discord")
-        logger.log(level=logging.DEBUG, msg=msg)
-
-    def _add_balance(self, guild_id: int, user_id: int, value: int) -> int:
-        balance_current: int = db.get_balance_for(user_id=user_id)
-        balance_current = db.set_balance_for(user_id=user_id, value=balance_current + value)
-        if value > 0:
-            self._add_earnings(guild_id=guild_id, value=value)
-        return balance_current
-
-    def _add_earnings(self, guild_id: int, value: int) -> int:
-        earnings_current: int = db.get_guild_earnings(guild_id=guild_id)
-        if value > 0:
-            earnings_current = db.set_guild_earnings(guild_id=guild_id, value=earnings_current + value)
-        return earnings_current
-
     # Default user commands
-
-    @commands.command(name=strings.get("command_name_wheel"))
-    @commands.check(_is_enabled)
-    @commands.cooldown(rate=config.WHEEL_USE_RATE, per=config.WHEEL_USE_PER, type=BucketType.user)
-    async def cmd_wheel(self, ctx: Context, colour: str, value: int) -> None:
-        """
-        Roll a colour, either orange or green, for a 50-50 chance to double or lose your bet.
-        :param ctx:
-        :param colour: The colour to wager will win.
-        :param value: The amount to wager.
-        """
-        if not config.WHEEL_ENABLED:
-            return
-        msg: str
-        balance_current: int = db.get_balance_for(user_id=ctx.author.id)
-        if value <= 0:
-            raise BadArgument()
-        elif balance_current < value:
-            msg = strings.random("shop_responses_poor").format(value - balance_current)
-        else:
-            query_clean: str = colour.strip().lower()
-            is_green: bool = query_clean.startswith("g") or query_clean.startswith("b")
-            is_orange: bool = query_clean.startswith("o") or query_clean.startswith("r")
-            if not is_green and not is_orange:
-                msg = strings.random("wheel_responses_colour")
-            else:
-                response: SCommands.SResponse = self._do_wheel(guild_id=ctx.guild.id, user_id=ctx.author.id, value=value, is_green=is_green)
-                response_key: str = 'balance_responses_added' if response.value > 0 else 'balance_responses_removed'
-                if response.value != 0:
-                    response.msg += f"\n{strings.random(response_key).format(response.value)}"
-                msg = response.msg
-        await ctx.reply(content=msg)
-
-    @commands.command(name=strings.get("command_name_fortune"))
-    @commands.check(_is_enabled)
-    @commands.cooldown(rate=config.FORTUNE_USE_RATE, per=config.FORTUNE_USE_PER, type=BucketType.user)
-    async def cmd_fortune(self, ctx: Context) -> None:
-        """
-        Not implemented.
-        """
-        if not config.FORTUNE_ENABLED:
-            return
-
-    @commands.command(name=strings.get("command_name_strength"))
-    @commands.check(_is_enabled)
-    @commands.cooldown(rate=config.STRENGTH_USE_RATE, per=config.STRENGTH_USE_PER, type=BucketType.user)
-    async def cmd_strength(self, ctx: Context) -> None:
-        """
-        Roll for a score at the Strength Test game, with an award based on the result.
-        """
-        if not config.STRENGTH_ENABLED:
-            return
-        response: SCommands.SResponse = self._do_strength(guild_id=ctx.guild.id, user_id=ctx.author.id)
-        if response.value > 0:
-            response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
-        await ctx.reply(content=response.msg)
 
     @commands.command(name=strings.get("command_name_balance_get"))
     async def cmd_balance_get(self, ctx: Context, user_query: str = None) -> None:
@@ -297,7 +290,8 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             msg = f"{emoji}\t{response.msg}"
         except BadArgument:
             msg = strings.get("commands_error_user")
-        await ctx.reply(content=msg)
+        if msg:
+            await ctx.reply(content=msg)
 
     @commands.command(name=strings.get("command_name_balance_add"))
     async def cmd_balance_set(self, ctx: Context, user_query: str, value: int) -> None:
@@ -312,12 +306,17 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             user: User = await UserConverter().convert(
                 ctx=ctx,
                 argument=str(user_query).strip())
-            response: SCommands.SResponse = self._do_balance_set(guild_id=ctx.guild.id, user_from=ctx.author, user_to=user, value=value)
+            response: SCommands.SResponse = self._do_balance_set(
+                guild_id=ctx.guild.id,
+                user_from=ctx.author,
+                user_to=user,
+                value=value)
             emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
             msg = f"{emoji}\t{response.msg}"
         except BadArgument:
             msg = strings.get("commands_error_user")
-        await ctx.reply(content=msg)
+        if msg:
+            await ctx.reply(content=msg)
 
     # Admin commands
 
@@ -337,44 +336,160 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             user: User = await UserConverter().convert(
                 ctx=ctx,
                 argument=str(user_query).strip())
-            response: SCommands.SResponse = self._do_award(guild_id=ctx.guild.id, user=user, value=value)
+            response: SCommands.SResponse = self._do_award(
+                guild_id=ctx.guild.id,
+                user=user,
+                value=value)
             emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
             msg = f"{emoji}\t{response.msg}"
         except BadArgument:
             msg = strings.get("commands_error_user")
-        await ctx.reply(content=msg)
+        if msg:
+            await ctx.reply(content=msg)
 
     @commands.command(name=strings.get("command_name_earnings"), hidden=True)
     @commands.check(requires_admin)
-    async def cmd_earnings(self, ctx: Context, value: int = None) -> None:
+    async def cmd_earnings(self, ctx: Context, value: Union[int, str] = None) -> None:
         """
-        Get or set the total earnings for this guild.
+        Get or set the total earnings for this guild, or a user if provided.
 
         Omitting value prints the current amount with no change to its value.
         :param ctx:
-        :param value: Optional balance change to apply to the total earnings.
+        :param value: Optional value; either user query, or balance change to apply to the guild earnings.
         """
         msg: str
-        earnings_current: int = db.get_guild_earnings(guild_id=ctx.guild.id)
+        emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
+        guild_entry: db.DBGuild = db.get_guild(guild_id=ctx.guild.id)
         if not value:
             # Omitting value will get current earnings
-            msg = strings.get("commands_response_earnings_get").format(earnings_current)
+            msg = strings.get("commands_response_earnings_get").format(
+                guild_entry.earnings,
+                emoji
+            )
+        elif isinstance(value, str) or int(value) > 9999999:
+            try:
+                # Value will be read as a user query
+                user: User = await UserConverter().convert(
+                    ctx=ctx,
+                    argument=str(value).strip())
+                user_entry: db.DBUser = db.get_user(user_id=user.id)
+                msg = strings.get("commands_response_earnings_user").format(
+                    user.mention,
+                    user_entry.earnings,
+                    user_entry.balance,
+                    emoji
+                )
+            except BadArgument:
+                msg = strings.get("commands_error_user")
         else:
             # Including value will change current earnings
-            earnings_total: int = db.set_guild_earnings(guild_id=ctx.guild.id, value=earnings_current + value)
-            msg = strings.get("commands_response_earnings_set").format(earnings_total, f"+{value}" if value >= 0 else value)
-        await ctx.reply(content=msg)
+            earnings_previous: int = guild_entry.earnings
+            earnings_difference: int = value - earnings_previous
+            guild_entry.earnings = value
+            db.update_guild(entry=guild_entry)
+            msg = strings.get("commands_response_earnings_set").format(
+                guild_entry.earnings,
+                f"+{earnings_difference}" if earnings_difference >= 0 else earnings_difference,
+                earnings_previous,
+                emoji
+            )
+        if msg:
+            await ctx.reply(content=msg)
+
+    @commands.command(name=strings.get("command_name_submissions_get"))
+    @commands.check(requires_admin)
+    async def cmd_submissions_get(self, ctx: Context, user_query: str = None) -> None:
+        """
+        Get your current contest submission count, or another user by ID.
+        :param ctx:
+        :param user_query: Discord user ID, mention, or name to get Picross wins for.
+        """
+        msg: str
+        try:
+            if not user_query:
+                user_query = ctx.author.id
+            user: User = await UserConverter().convert(
+                ctx=ctx,
+                argument=str(user_query).strip())
+            user_entry: db.DBUser = db.get_user(user_id=user.id)
+            if any(user_entry.submitted_channels):
+                msg = strings.get("commands_response_submissions_get").format(
+                    user.mention,
+                    len(user_entry.submitted_channels),
+                    " ".join([self.bot.get_channel(channel).mention for channel in user_entry.submitted_channels]),
+                    strings.emoji_memo
+                )
+            else:
+                msg = strings.get("commands_response_submissions_get_none").format(
+                    user.mention
+                )
+        except BadArgument:
+            msg = strings.get("commands_error_user")
+        if msg:
+            await ctx.reply(content=msg)
+
+    @commands.command(name=strings.get("command_name_picross_get"))
+    @commands.check(requires_admin)
+    async def cmd_picross_get(self, ctx: Context, user_query: str = None) -> None:
+        """
+        Get your current Picross puzzle count, or another user by ID.
+        :param ctx:
+        :param user_query: Discord user ID, mention, or name to get Picross wins for.
+        """
+        msg: str
+        try:
+            if not user_query:
+                user_query = ctx.author.id
+            user: User = await UserConverter().convert(
+                ctx=ctx,
+                argument=str(user_query).strip())
+            user_entry: db.DBUser = db.get_user(user_id=user.id)
+            msg = strings.get("commands_response_picross_get").format(
+                user.mention,
+                user_entry.picross_count,
+                strings.emoji_memo
+            )
+        except BadArgument:
+            msg = strings.get("commands_error_user")
+        if msg:
+            await ctx.reply(content=msg)
+
+    @commands.command(name=strings.get("command_name_forget_submissions"))
+    @commands.check(requires_admin)
+    async def cmd_forget_submissions(self, ctx: Context, user_query: str) -> None:
+        """
+        Forgets all user submissions, allowing them to be awarded in all channels.
+        :param ctx:
+        :param user_query: Discord user ID, mention, or name to forget submissions from.
+        """
+        msg: str
+        try:
+            user: User = await UserConverter().convert(
+                ctx=ctx,
+                argument=str(user_query).strip())
+            user_entry: db.DBUser = db.get_user(user_id=user.id)
+
+            # Send confirmation message
+            emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
+            msg = strings.get("commands_response_forget_submissions").format(
+                user.mention,
+                len(user_entry.submitted_channels),
+                emoji
+            )
+
+            # Forget submitted channels by clearing list in record
+            user_entry.submitted_channels.clear()
+            db.update_user(entry=user_entry)
+        except BadArgument:
+            msg = strings.get("commands_error_user")
+        if msg:
+            await ctx.reply(content=msg)
 
     @commands.command(name=strings.get("command_name_enabled"), hidden=True)
     @commands.check(requires_admin)
     async def cmd_enabled(self, ctx: Context) -> None:
         msg = "\n".join([
-            strings.get("commands_response_enable_submission").format(strings.on_off(config.SUBMISSION_ENABLED)),
-            strings.get("commands_response_enable_fishing").format(strings.on_off(config.FISHING_ENABLED)),
-            strings.get("commands_response_enable_fortune").format(strings.on_off(config.FORTUNE_ENABLED)),
-            strings.get("commands_response_enable_strength").format(strings.on_off(config.STRENGTH_ENABLED)),
-            strings.get("commands_response_enable_wheel").format(strings.on_off(config.WHEEL_ENABLED)),
-            strings.get("commands_response_enable_crystalball").format(strings.on_off(config.CRYSTALBALL_ENABLED))
+            strings.get("commands_response_enable_submission").format(strings.on_off(config.SUBMISSION_ENABLED))
         ])
         await ctx.reply(content=strings.get("commands_response_enabled").format(msg))
 
@@ -383,63 +498,24 @@ class SCommands(Cog, name=config.COG_COMMANDS):
     async def cmd_enable_submission(self, ctx: Context, is_enabled: bool = None) -> None:
         if is_enabled is not None:
             config.SUBMISSION_ENABLED = is_enabled
-            self._log_admin(msg_key="log_admin_enable_submission", user=ctx.author, value=strings.on_off(is_enabled))
-        await ctx.reply(content=strings.get("commands_response_enable_submission").format(strings.on_off(config.SUBMISSION_ENABLED)))
-
-    @commands.command(name=strings.get("command_name_enable_fishing"), hidden=True)
-    @commands.check(requires_admin)
-    async def cmd_enable_fishing(self, ctx: Context, is_enabled: bool = None) -> None:
-        if is_enabled is not None:
-            config.FISHING_ENABLED = is_enabled
-            self._log_admin(msg_key="log_admin_enable_fishing", user=ctx.author, value=strings.on_off(is_enabled))
-        await ctx.reply(content=strings.get("commands_response_enable_fishing").format(strings.on_off(config.FISHING_ENABLED)))
-
-    @commands.command(name=strings.get("command_name_enable_fortune"), hidden=True)
-    @commands.check(requires_admin)
-    async def cmd_enable_fortune(self, ctx: Context, is_enabled: bool = None) -> None:
-        if is_enabled is not None:
-            config.FORTUNE_ENABLED = is_enabled
-            self._log_admin(msg_key="log_admin_enable_fortune", user=ctx.author, value=strings.on_off(is_enabled))
-        await ctx.reply(content=strings.get("commands_response_enable_fortune").format(strings.on_off(config.FORTUNE_ENABLED)))
-
-    @commands.command(name=strings.get("command_name_enable_strength"), hidden=True)
-    @commands.check(requires_admin)
-    async def cmd_enable_strength(self, ctx: Context, is_enabled: bool = None) -> None:
-        if is_enabled is not None:
-            config.STRENGTH_ENABLED = is_enabled
-            self._log_admin(msg_key="log_admin_enable_strength", user=ctx.author, value=strings.on_off(is_enabled))
-        await ctx.reply(content=strings.get("commands_response_enable_strength").format(strings.on_off(config.STRENGTH_ENABLED)))
-
-    @commands.command(name=strings.get("command_name_enable_wheel"), hidden=True)
-    @commands.check(requires_admin)
-    async def cmd_enable_wheel(self, ctx: Context, is_enabled: bool = None) -> None:
-        if is_enabled is not None:
-            config.WHEEL_ENABLED = is_enabled
-            self._log_admin(msg_key="log_admin_enable_wheel", user=ctx.author, value=strings.on_off(is_enabled))
-        await ctx.reply(content=strings.get("commands_response_enable_wheel").format(strings.on_off(config.WHEEL_ENABLED)))
-
-    @commands.command(name=strings.get("command_name_enable_crystalball"), hidden=True)
-    @commands.check(requires_admin)
-    async def cmd_enable_crystalball(self, ctx: Context, is_enabled: bool = None) -> None:
-        if is_enabled is not None:
-            config.CRYSTALBALL_ENABLED = is_enabled
-            self._log_admin(msg_key="log_admin_enable_crystalball", user=ctx.author, value=strings.on_off(is_enabled))
-        await ctx.reply(content=strings.get("commands_response_enable_crystalball").format(strings.on_off(config.CRYSTALBALL_ENABLED)))
+            _log_admin(msg_key="log_admin_enable_submission", user=ctx.author, value=strings.on_off(is_enabled))
+        await ctx.reply(content=strings.get("commands_response_enable_submission").format(
+            strings.on_off(config.SUBMISSION_ENABLED)))
 
     @commands.command(name=strings.get("command_name_sync"), hidden=True)
     @commands.check(requires_admin)
     async def cmd_sync(self, ctx: Context) -> None:
-        self._log_admin(msg_key="log_admin_sync", user=ctx.author)
+        _log_admin(msg_key="log_admin_sync", user=ctx.author)
         await self.bot.sync_guild(ctx.guild)
         await ctx.reply(content=strings.get("commands_response_sync"))
 
-    @commands.command(name=strings.get("command_name_reload"), aliases=["z"], hidden=True)
+    @commands.command(name=strings.get("command_name_reload"), aliases=[config.COMMAND_PREFIX], hidden=True)
     @commands.check(requires_admin)
     async def cmd_reload(self, ctx: Context) -> None:
         """
         Reloads the commands extension, reapplying code changes and reloading the strings data file.
         """
-        self._log_admin(msg_key="log_admin_reload", user=ctx.author)
+        _log_admin(msg_key="log_admin_reload", user=ctx.author)
         await self.bot.reload_extension(name=config.PACKAGE_COMMANDS)
         await ctx.message.add_reaction(strings.emoji_confirm)
 
@@ -452,9 +528,10 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         :param string: Key of string in strings data file.
         """
         msg: str = strings.get(string)
-        await ctx.reply(content=strings.get("commands_response_test_string").format(string, msg)
-                        if msg
-                        else strings.get("error_string_not_found").format(string))
+        await ctx.reply(
+            content=strings.get("commands_response_test_string").format(string, msg)
+            if msg
+            else strings.get("error_string_not_found").format(string))
 
     @commands.command(name=strings.get("command_name_test_emoji"), hidden=True)
     @commands.check(requires_admin)
@@ -485,20 +562,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             for rd in config.SHOP_ROLE_LIST])
         await ctx.reply(content=strings.get("commands_response_test_roles").format(msg))
 
-    @commands.command(name=strings.get("command_name_test_fish"), hidden=True)
-    @commands.check(requires_admin)
-    async def cmd_test_fish(self, ctx: Context) -> None:
-        """
-        Test fish emoji and scoring.
-        :param ctx:
-        """
-        msg: str = "\n".join([strings.get("commands_response_test_fish_format").format(
-            key if len(key) == 1 else utils.get(self.bot.emojis, name=key),
-            config.FISHING_SCOREBOARD[key])
-            for key in config.FISHING_SCOREBOARD.keys()])
-        await ctx.reply(content=strings.get("commands_response_test_fish").format(msg))
-
-    @commands.command(name=strings.get("command_name_message_send"), hidden=True)
+    @commands.command(name=strings.get("command_name_message_send"))
     @commands.check(requires_admin)
     async def cmd_send_message(self, ctx: Context, query: str, *, content: str) -> None:
         """
@@ -521,7 +585,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             msg = strings.get("commands_response_send_failure")
         await ctx.reply(content=msg)
 
-    @commands.command(name=strings.get("command_name_message_edit"), hidden=True)
+    @commands.command(name=strings.get("command_name_message_edit"))
     @commands.check(requires_admin)
     async def cmd_edit_message(self, ctx: Context, message_id: int, *, content: str) -> None:
         """
@@ -544,92 +608,150 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             msg = strings.get("commands_response_edit_failure")
         await ctx.reply(content=msg)
 
-    @commands.command(name=strings.get("command_name_shop_update"), hidden=True)
+    @commands.command(name=strings.get("command_name_shop_update"))
     @commands.check(requires_admin)
     async def cmd_update_shop(self, ctx: Context) -> None:
         """
-        Generates and sends persistent Shop message in the configured channel.
+        Updates the persistent role-button shop message.
         """
         msg: str = await self._do_update_shop(ctx=ctx)
         await ctx.reply(content=msg)
 
-    @commands.command(name="config", hidden=True)
+    @commands.command(name=strings.get("command_name_send_logs"), aliases=["log"])
     @commands.check(requires_admin)
-    async def cmd_print_config(self, ctx: Context) -> None:
+    async def cmd_send_logs(self, ctx: Context) -> None:
+        """
+        Send a message with all available log files for this session.
+        """
+        fps: List[str] = [
+            os.path.join(config.LOG_DIR, file)
+            for file in os.listdir(config.LOG_DIR)
+        ]
+        files: List[File] = []
+        for fp in fps:
+            with open(file=fp, mode="r", encoding="utf8") as file:
+                s: StringIO = StringIO()
+                s.write(file.read())
+                s.seek(0)
+                files.append(File(s, filename=os.path.basename(fp)))
+
+        hours: float = float(datetime.now().astimezone().strftime("%z")) / 100
+        msg: str = strings.get("commands_response_logs" if files else "commands_response_logs_none").format(
+            self.bot.start_time.strftime(strings.get("datetime_format_uptime")),
+            f"+{hours}" if hours > 0 else hours)
+        await ctx.reply(content=msg, files=files)
+
+    @commands.command(name=strings.get("command_name_send_config"), aliases=["cfg"])
+    @commands.check(requires_admin)
+    async def cmd_send_config(self, ctx: Context) -> None:
         """
         Send a message with the contents of the config file.
         """
-        msg: str
-        config_json: dict = config.cfg
-        config_json["discord"] = "".join(["*" for _ in cfg["discord"]])
-        msg = f"```json\n{json.dumps(config_json, indent=4)[:1900]}\n```"
-        await ctx.reply(content=msg)
+        config_file: File = None
+        with open(file=config.PATH_CONFIG, mode="r", encoding="utf8") as file:
+            js: dict = json.load(file)
+            js["discord"] = "*" * len(js["discord"])
+            s: StringIO = StringIO()
+            s.write(json.dumps(js, indent=2, sort_keys=False))
+            s.seek(0)
+            config_file = File(s, filename=os.path.basename(config.PATH_CONFIG))
+        msg: str = strings.get("commands_response_config").format(
+            self.bot.start_time.strftime(strings.get("datetime_format_uptime")))
+        await ctx.reply(content=msg, file=config_file)
+
+    @commands.command(name=strings.get("command_name_update_avatar"))
+    @commands.check(requires_admin)
+    async def cmd_update_avatar(self, ctx: Context) -> None:
+        """
+        Updates bot client display picture.
+        """
+        _log_admin(msg_key="log_admin_avatar", user=ctx.author)
+
+        msg: str = None
+        attachment: Attachment = None
+        original_avatar: File = None
+        size_denom: int = 1000 * 1000
+        size_max: int = 8
+
+        # Fetch avatar from attachments
+        if any(ctx.message.attachments):
+            images: list = [a for a in ctx.message.attachments if re.match(r"image/(png|jpe?g)", a.content_type)]
+            if any(images):
+                images_usable: list = [a for a in images if a.size < size_denom * size_max]
+                if not any(images_usable):
+                    msg = strings.get("error_avatar_size").format(size_max)
+                else:
+                    attachment = images_usable[0]
+        if not attachment:
+            if not msg:
+                msg = strings.get("error_avatar_not_found")
+        else:
+            original_avatar = await self.bot.user.display_avatar.to_file()
+            attachment_bytes: bytes = await attachment.read()
+            await self.bot.user.edit(avatar=attachment_bytes)
+            await ctx.message.add_reaction(strings.emoji_confirm)
+            msg = strings.get("commands_response_update_avatar").format(attachment.filename)
+
+        await ctx.reply(content=msg, file=original_avatar)
+
+    @commands.command(name=strings.get("command_name_update_username"))
+    @commands.check(requires_admin)
+    async def cmd_update_username(self, ctx: Context, username: str) -> None:
+        """
+        Updates bot client username.
+        """
+        _log_admin(msg_key="log_admin_username", user=ctx.author, value=username)
+
+        msg: str = None
+        try:
+            original_username: str = self.bot.user.global_name or str(self.bot.user)
+            await self.bot.user.edit(username=username)
+            await ctx.message.add_reaction(strings.emoji_confirm)
+            msg = strings.get("commands_response_update_username").format(original_username)
+        except HTTPException:
+            await ctx.message.add_reaction(strings.emoji_cancel)
+            msg = strings.get("error_username_invalid")
+        finally:
+            if msg:
+                await ctx.reply(content=msg)
 
     # Command implementations
 
-    def _do_fortune_command(self, user_id: int) -> None:
+    async def do_award_command(self, interaction: Interaction, message: Message):
         """
-        Not implemented.
-        :param user_id: Discord user ID for a given user.
+        Method handling Award context command behaviours.
         """
+        msg_rejected: str = None
+        msg_verified: str = None
 
-    def _do_strength(self, guild_id: int, user_id: int) -> SResponse:
-        """
-        Generate a message for a strength-test scenario and add value to user's balance.
-        :param user_id: Discord user ID for a given user.
-        """
-        # Outcomes set is in ascending order, from the lowest value at 0 to the highest value at len
-        outcomes: List[str] = strings.get("strength_responses_score")
-        outcome_index: int = random.randint(0, len(outcomes))
-        outcome_value: int = max(1, (floor(ceil(outcome_index) / len(outcomes) * config.STRENGTH_MAX_VALUE)))
-
-        is_weak: bool = outcome_index == 0
-        is_strong: bool = outcome_index == len(outcomes) - 1
-
-        # Add value of outcome as a ratio of possible outcomes earned by this user to their balance
-        balance_bonus: int = config.STRENGTH_BONUS_VALUE if is_weak or is_strong else 0
-        balance_earned: int = outcome_value + balance_bonus
-        self._add_balance(guild_id=guild_id, user_id=user_id, value=balance_earned)
-
-        response: str = strings.get("strength_response_format").format(
-            strings.random("strength_responses_start"),
-            strings.random("strength_responses_hit"),
-            strings.emoji_explosion,
-            strings.random("strength_responses_end"),
-            outcomes[outcome_index]
-        )
-        emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_strength"))
-        msg: str = f"{emoji}\t{response}"
-        if is_weak:
-            msg += f"\n{strings.random('strength_responses_weak')}"
-        elif is_strong:
-            msg += f"\n{strings.random('strength_responses_strong')}"
-
-        return SCommands.SResponse(msg=msg, value=balance_earned)
-
-    def _do_wheel(self, guild_id: int, user_id: int, value: int, is_green: bool) -> SResponse:
-        random_range: int = 100
-        random_result: int = random.randint(0, random_range)
-        is_win: bool = random_result < random_range * config.WHEEL_WIN_CHANCE
-
-        # Add or remove from the user's balance
-        balance_earned: int = value * (1 if is_win else -1)
-        self._add_balance(guild_id=guild_id, user_id=user_id, value=balance_earned)
-
-        # Send a reply with the matching colour set for a win or loss
-        emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_wheel"))
-        response_start: str = f"{emoji}\t{strings.random('wheel_responses_start')}"
-
-        # Losses will show the response as if the opposite set landed
-        response_key: str
-        if is_green:
-            response_key = "wheel_responses_win_a" if is_win else "wheel_responses_lose_b"
+        # Do staff verification on user messages in submission channels
+        if not config.SUBMISSION_ENABLED:
+            # Reject if submissions are disabled in config
+            msg_rejected = strings.get("submission_disabled")
+        elif message.channel.id not in _get_submission_data().keys():
+            # Awards can only be given in submission channels
+            msg_rejected = strings.get("submission_bad_channel").format(
+                config.COMMAND_PREFIX,
+                strings.get("command_name_award"))
         else:
-            response_key = "wheel_responses_win_b" if is_win else "wheel_responses_lose_a"
-        response: str = strings.random(response_key)
-        msg: str = strings.get("wheel_response_format").format(response_start, response)
-
-        return SCommands.SResponse(msg=msg, value=balance_earned)
+            user_entry: db.DBUser = db.get_user(user_id=message.author.id)
+            if message.channel.id in user_entry.submitted_channels:
+                # Reject if user has already been awarded in this channel
+                msg_rejected = strings.get("submission_duplicate").format(
+                    message.author.mention)
+            else:
+                msg_verified = self._do_verification(message=message, user=interaction.user)
+                if not msg_verified:
+                    # Reject if failed to verify
+                    msg_rejected = strings.get("submission_no_award")
+                else:
+                    # Award user for their first submission in this channel
+                    emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_submissions"))
+                    await interaction.response.send_message(content=f"{emoji} {message.author.mention} {msg_verified}")
+                    await message.add_reaction(strings.emoji_confirm)
+        if msg_rejected:
+            # Send message to staff if rejected
+            await interaction.response.send_message(content=msg_rejected, ephemeral=True)
 
     def _do_balance_get(self, author: User, user: User) -> SResponse:
         """
@@ -637,13 +759,13 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         :param author: User checking balance.
         :param user: User to check.
         """
-        balance: int = db.get_balance_for(user_id=user.id)
+        user_entry: db.DBUser = db.get_user(user_id=user.id)
         msg_balance_key: str = "balance_responses_other" if author.id != user.id \
-            else "balance_responses_none" if balance < 1 \
-            else "balance_responses_one" if balance == 1 \
+            else "balance_responses_none" if user_entry.balance < 1 \
+            else "balance_responses_one" if user_entry.balance == 1 \
             else "balance_responses_many"
-        msg: str = strings.random(msg_balance_key).format(balance, user.mention)
-        return SCommands.SResponse(msg=msg, value=balance)
+        msg: str = strings.random(msg_balance_key).format(user_entry.balance, user.mention)
+        return SCommands.SResponse(msg=msg, value=user_entry.balance)
 
     def _do_balance_set(self, guild_id: int, user_from: User, user_to: User, value: int) -> SResponse:
         """
@@ -652,8 +774,10 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         :param user_to: User receiving donation.
         :param value: Value to be added to user's balance.
         """
-        balance_from: int = db.get_balance_for(user_id=user_from.id)
-        balance_donated: int = min(balance_from, value)
+        guild_entry: db.DBGuild = db.get_guild(guild_id=guild_id)
+        user_from_entry: db.DBUser = db.get_user(user_id=user_from.id)
+        user_to_entry: db.DBUser = db.get_user(user_id=user_to.id)
+        balance_donated: int = min(user_from_entry.balance, value)
         is_negative: bool = balance_donated < 1
 
         if user_from.id == user_to.id or value < 1:
@@ -662,12 +786,16 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             value = 0
         else:
             # Add balance to target user
-            self._add_balance(guild_id=guild_id, user_id=user_to.id, value=balance_donated)
+            _add_balance(guild_entry=guild_entry, user_entry=user_to_entry, value=balance_donated)
             # Deduct balance from self user
-            self._add_balance(guild_id=guild_id, user_id=user_from.id, value=-balance_donated)
+            _add_balance(guild_entry=guild_entry, user_entry=user_from_entry, value=-balance_donated)
 
         msg_balance_key: str = "balance_responses_too_low" if is_negative else "balance_responses_donated"
-        msg: str = strings.random(msg_balance_key).format(balance_donated, balance_from, user_to.mention, db.get_balance_for(user_id=user_to.id))
+        msg: str = strings.random(msg_balance_key).format(
+            balance_donated,
+            user_from_entry.balance,
+            user_to.mention,
+            user_to_entry.balance)
         return SCommands.SResponse(msg=msg, value=value)
 
     def _do_award(self, guild_id: int, user: User, value: int) -> SResponse:
@@ -676,23 +804,29 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         :param user: User receiving donation.
         :param value: Value to be added to user's balance.
         """
+        guild_entry: db.DBGuild = db.get_guild(guild_id=guild_id)
+        user_entry: db.DBUser = db.get_user(user_id=user.id)
+
         # Add to user's balance
-        self._add_balance(guild_id=guild_id, user_id=user.id, value=value)
+        _add_balance(guild_entry=guild_entry, user_entry=user_entry, value=value)
 
         msg: str = strings.random("award_responses").format(value, user.mention)
         return SCommands.SResponse(msg=msg, value=value)
 
     async def _do_update_shop(self, ctx: Context) -> str:
-        message_id: int = db.get_shop_message_id(guild_id=ctx.guild.id)
+        # Get roles and text for shop info
+        guild_entry: db.DBGuild = db.get_guild(guild_id=ctx.guild.id)
         emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
         msg_roles: str = "\n".join([strings.get("message_shop_role").format(
-            utils.get(self.bot.emojis, name=strings.get(f"emoji_{role_data.get('name')}")),
+            utils.get(self.bot.emojis, name=strings.get(f"emoji_hat_{role_data.get('name')}")),
             ctx.guild.get_role(role_data.get("id")).mention,
             role_data.get("cost")
         ) for role_data in config.SHOP_ROLE_LIST])
         msg: str
         shop_title: str = strings.get("message_shop_title").format(strings.emoji_shop)
         shop_body: str = strings.get("message_shop_body").format(msg_roles, emoji)
+
+        # Create embed with shop info and button view
         embed: Embed = Embed(
             colour=ctx.guild.get_member(self.bot.user.id).colour,
             title=shop_title,
@@ -701,171 +835,101 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         view: View = SCommands.SShopView(guild=ctx.guild, bot=self.bot)
         channel: TextChannel = self.bot.get_channel(config.CHANNEL_SHOP)
         message: Message
-        if message_id:
-            message = await channel.get_partial_message(message_id).edit(content=None, embed=embed, view=view)
+
+        # Send or edit shop message
+        if guild_entry.shop_message_id:
+            message = await channel.get_partial_message(guild_entry.shop_message_id).edit(content=None, embed=embed, view=view)
             msg = strings.get("commands_response_edit_success").format(
                 message.channel.mention,
                 message.jump_url)
         else:
             message = await channel.send(content=None, embed=embed, view=view)
-            db.set_shop_message_id(guild_id=ctx.guild.id, message_id=message.id)
             msg = strings.get("commands_response_send_success").format(
                 channel.mention,
                 message.jump_url)
+
+            # Update guild entry with shop message ID
+            guild_entry.shop_message_id = message.id
+            db.update_guild(entry=guild_entry)
+
         return msg
 
     # Event implementations
 
-    async def _do_verification(self, reaction: Reaction, user: User) -> Optional[str]:
+    async def _do_secret_submission(self, message: Message, verification_channel_id: int) -> Optional[str]:
+        msg: str = None
+        matches: Optional[re.Match[str]] = re.match(pattern=r"https?\S+", string=message.content)
+        urls: List[str] = [i.proxy_url for i in message.attachments] \
+                + [i.image.proxy_url for i in message.embeds if i.image and i.image.proxy_url] \
+                + ([s for s in matches.groups()] if matches else [])
+
+        # Send all messages in secret submission channels for verification, except admin messages without attachments
+        for url in urls:
+            # Send parsed copy in verification channel for each attachment
+            embed: Embed = Embed(
+                title=strings.get("submission_verify_title").format(
+                    message.author.global_name or message.author,
+                    message.channel.name
+                ),
+                description=message.content,
+                colour=Colour.blurple(),
+                url=url
+            )
+            embed.set_image(url=url)
+            await self.bot.get_channel(verification_channel_id).send(
+                content=msg,
+                embed=embed,
+                view=SCommands.SVerifyView(submission_author=message.author, submission_channel=message.channel))
+        if urls or not check_roles(user=message.author, role_ids=[config.ROLE_ADMIN, config.ROLE_HELPER]):
+            # Send receipt in submission channel
+            msg = strings.get("submission_verify_response").format(
+                message.author.mention,
+                strings.emoji_memo
+            )
+            # Delete original message after sending
+            await message.delete()
+
+        return msg
+
+    def _do_verification(self, message: Message, user: User) -> Optional[str]:
         """
         Staff reactions to posts with attachments in the submissions channel will add to the author's balance.
-        :param reaction: Reaction instance for a given emoji on the message.
-        :param user: User reacting to the message.
+        :param message: Interaction message instance.
+        :param user: User verifying the message.
         """
-        if check_roles(user=user, role_ids=[ROLE_ADMIN, ROLE_HELPER]) \
-                and reaction.message.id not in self.submission_session:
-            if any(reaction.message.attachments) or any(reaction.message.embeds):
-                self.submission_session.append(reaction.message.id)
-                is_art: bool = reaction.message.channel.id == config.CHANNEL_ART
-                balance_earned: int = config.SUBMISSION_ART_VALUE if is_art else config.SUBMISSION_FOOD_VALUE
-                self._add_balance(guild_id=reaction.message.guild.id, user_id=reaction.message.author.id, value=balance_earned)
-                msg_key: str = "submission_responses_art" if is_art else "submission_responses_food"
-                msg: str = strings.random(msg_key).format(balance_earned)
-                return msg
+        guild_entry: db.DBGuild = db.get_guild(guild_id=message.guild.id)
+        user_entry: db.DBUser = db.get_user(user_id=user.id)
+        if message.channel.id not in user_entry.submitted_channels:
+            submission_data: Dict[int, Tuple] = _get_submission_data()
+            balance_earned: int
+            msg_key: str
 
-    async def _do_fishing(self, reaction: Reaction, user: User) -> Optional[SResponse]:
-        """
-        Adds to a user's balance some value based on the fish emoji in a message they reacted to.
-        :param reaction: Reaction instance for a given emoji on the message.
-        :param user: User reacting to the message.
-        """
-        # Check fishing session to prevent users adding multiple reactions to the same message to cheat their balance
-        fishing_user: List[int] = self.fishing_session.get(user.id, [])
-        if reaction.message.id in fishing_user:
-            return
+            # Update user balance
+            balance_earned, msg_key = submission_data.get(message.channel.id, (0, None))
+            if balance_earned < 1:
+                return None
+            _add_balance(guild_entry=guild_entry, user_entry=user_entry, value=balance_earned)
 
-        msg: str
-        balance_earned: int = 0
-        balance_bonus: int = 0
+            # Update user submissions record
+            user_entry.submitted_channels.append(message.channel.id)
+            db.update_user(entry=user_entry)
 
-        # Save interaction to fishing session
-        fishing_user.append(reaction.message.id)
-        self.fishing_session[user.id] = fishing_user
-
-        # Sum the value of fish caught in this message
-        fish_counts: Dict[str, int] = {
-            fish: reaction.message.content.count(fish)
-            for fish in FISHING_SCOREBOARD.keys()
-        }
-        fish_scores: Dict[str, int] = {
-            fish: FISHING_SCOREBOARD[fish] * fish_counts[fish]
-            for fish in fish_counts.keys()
-        }
-        fish_value: int = sum(fish_scores.values())
-        is_catch: bool = fish_value > 0
-
-        # Ignore the catch if message had no fish emoji
-        if all(value == 0 for value in fish_scores.values()):
-            return
-
-        # Check if catch period has expired, converting to timezone-unaware times
-        time_now = datetime.datetime.now(tz=datetime.timezone.utc)
-        time_msg = reaction.message.created_at
-        time_period = datetime.timedelta(seconds=config.FISHING_DURATION_SECONDS)
-        time_delta = time_now - time_msg
-
-        if not is_catch:
-            # Abandon a valueless catch
-            msg = strings.random("fishing_responses_none")
-        elif time_delta > time_period:
-            # Abandon a valuable catch if the catch period has expired
-            msg = strings.random("fishing_responses_timeout")
-        else:
-            # Otherwise add value of fish caught by this user to their balance
-            random_range: int = 100
-            random_result: int = random.randint(0, random_range)
-            if random_result < FISHING_BONUS_CHANCE * random_range:
-                balance_bonus = FISHING_BONUS_VALUE
-            balance_earned = fish_value + balance_bonus
-            self._add_balance(guild_id=reaction.message.guild.id, user_id=user.id, value=balance_earned)
-
-            # Generate a reply message based on number or value of fish caught
-            response_key: str = "fishing_responses_value" if fish_value >= FISHING_HIGH_VALUE \
-                else "fishing_responses_one" if len([count for count in fish_counts.values() if count > 0]) == 1 \
-                else "fishing_responses_many"
-            msg = strings.get("fishing_response_format").format(
-                strings.random(response_key),
-                strings.random("fishing_responses_summary"),
-                " ".join([fish_counts[fish] * (fish if len(fish) == 1 else str(utils.get(self.bot.emojis, name=fish)))
-                          for fish in fish_counts
-                          if fish_counts[fish] > 0]))
-            if balance_bonus > 0:
-                msg += f"\n{strings.random('fishing_responses_bonus')}"
-
-        emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_fishing"))
-        msg = f"{emoji}{user.mention}\t{msg}"
-        response: SCommands.SResponse = SCommands.SResponse(msg=msg, value=balance_earned)
-
-        return response
-
-    async def _do_fortune_message(self, message: Message) -> Optional[SResponse]:
-        """
-        Generate a message as a reply to any users asking a generic question in visible text channels.
-        :param message: Discord message to parse and create a reply to.
-        """
-        msg: str
-        response: Optional[SCommands.SResponse] = None
-        # Find questions in the message
-        qi: int
-        try:
-            qi = message.content.index("?")
-        except ValueError:
-            return
-        # Flatten out the question into lowercase chars for some simple stupid seed
-        question: str = message.content[:qi]
-        chars: str = "".join([c for c in question if c.isalnum()]).lower() if question else None
-        # Ignore questions expecting a detailed answer
-        if chars and all([not chars.startswith(s) for s in ["why", "who", "what", "where", "how"]]):
-            # We skip the usual strings random call to use a random seeded by the question
-            response: str = random.Random(chars).choice(strings.get("fortune_responses"))
-            emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_fortune"))
-            msg = f"{emoji}\t{response}"
-            response = SCommands.SResponse(msg=msg, value=0)
-        return response
+            msg: str = strings.random(msg_key).format(balance_earned)
+            return msg
 
     # Event listeners
 
     async def on_message(self, message: Message) -> None:
-        if message.author.bot:
-            return
+        msg: str = None
 
-        # Do bot responses on user messages in command channels
-        if config.CRYSTALBALL_ENABLED and message.channel.id in config.CHANNEL_COMMANDS:
-            response: Optional[SCommands.SResponse] = await self._do_fortune_message(message=message)
-            if response:
-                await message.reply(content=response.msg)
+        # Handle secret submissions in submission channels
+        submission_data: Dict[int, int] = _get_secret_submission_data()
+        verify_channel_id: Optional[int] = submission_data.get(message.channel.id, None)
+        if verify_channel_id:
+            msg = await self._do_secret_submission(message=message, verification_channel_id=verify_channel_id)
 
-    async def on_reaction_add(self, reaction: Reaction, user: User) -> None:
-        if reaction.message.author.bot or user.bot:
-            return
-
-        # Do staff verification on user messages in submission channels
-        if config.SUBMISSION_ENABLED and reaction.message.channel.id in [config.CHANNEL_ART, config.CHANNEL_FOOD]:
-            msg: str = await self._do_verification(reaction=reaction, user=user)
-            if msg:
-                await reaction.message.add_reaction(strings.emoji_confirm)
-                emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_submissions"))
-                msg = f"{emoji}\t{msg}"
-                await reaction.message.reply(content=msg)
-
-        # Do fishing responses on staff messages in any channels
-        if config.FISHING_ENABLED and check_roles(user=reaction.message.author, role_ids=[ROLE_ADMIN, ROLE_HELPER]):
-            response: Optional[SCommands.SResponse] = await self._do_fishing(reaction=reaction, user=user)
-            if response:
-                channel: TextChannel = self.bot.get_channel(config.CHANNEL_FISHING)
-                if response.value > 0:
-                    response.msg += f"\n{strings.random('balance_responses_added').format(response.value)}"
-                await channel.send(content=response.msg, allowed_mentions=AllowedMentions(users=True))
+        if msg:
+            await message.channel.send(content=msg)
 
     async def on_command_error(self, ctx: Context, error: Exception) -> None:
         msg: str = None
@@ -890,6 +954,64 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             await ctx.reply(content=msg)
 
 
+# Command utils
+
+
+def _log_admin(msg_key: str, user: User, value: Any = None):
+    msg: str = strings.get(msg_key).format(
+        user.global_name or user,
+        user.id,
+        value)
+    print(msg)
+    logger: logging.Logger = logging.getLogger("discord")
+    logger.log(level=logging.DEBUG, msg=msg)
+
+def _add_balance(guild_entry: db.DBGuild, user_entry: db.DBUser, value: int) -> int:
+    user_entry.balance += value
+    if value > 0:
+        user_entry.earnings += value
+        _add_earnings(guild_entry=guild_entry, value=value)
+    db.update_user(entry=user_entry)
+    return user_entry.balance
+
+def _add_earnings(guild_entry: db.DBGuild, value: int) -> int:
+    if value > 0:
+        guild_entry.earnings += value
+        db.update_guild(entry=guild_entry)
+    return guild_entry.earnings
+
+def _get_secret_submission_data():
+    return {
+        config.CHANNEL_SUBMIT_PICROSS: config.CHANNEL_VERIFY_PICROSS
+    }
+
+def _get_submission_data() -> Dict[int, Tuple]:
+    return {
+        config.CHANNEL_SUBMIT_ART: (config.SUBMISSION_VALUE_ART, "submission_responses_art"),
+        config.CHANNEL_SUBMIT_MODS: (config.SUBMISSION_VALUE_MODS, "submission_responses_mods"),
+        config.CHANNEL_SUBMIT_WRITING: (config.SUBMISSION_VALUE_WRITING, "submission_responses_writing"),
+        config.CHANNEL_SUBMIT_DECOR: (config.SUBMISSION_VALUE_DECOR, "submission_responses_decor"),
+        config.CHANNEL_SUBMIT_HATS: (config.SUBMISSION_VALUE_HATS, "submission_responses_hats"),
+    }
+def _make_ordinal(n):
+    """
+    Florian Brucker - https://stackoverflow.com/a/50992575
+
+    Convert an integer into its ordinal representation::
+
+        make_ordinal(0)   => '0th'
+        make_ordinal(3)   => '3rd'
+        make_ordinal(122) => '122nd'
+        make_ordinal(213) => '213th'
+    """
+
+    n = int(n)
+    if 11 <= (n % 100) <= 13:
+        suffix = 'th'
+    else:
+        suffix = ['th', 'st', 'nd', 'rd', 'th'][min(n % 10, 4)]
+    return str(n) + suffix
+
 # Discord.py boilerplate
 
 
@@ -900,7 +1022,6 @@ async def setup(bot: Bot):
 
     # Add event listeners
     bot.add_listener(cog.on_message, name="on_message")
-    bot.add_listener(cog.on_reaction_add, name="on_reaction_add")
     bot.add_listener(cog.on_command_error, name="on_command_error")
 
     # Load data
