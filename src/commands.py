@@ -708,9 +708,14 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             await self.bot.user.edit(username=username)
             await ctx.message.add_reaction(strings.emoji_confirm)
             msg = strings.get("commands_response_update_username").format(original_username)
-        except HTTPException:
+        except HTTPException as e:
             await ctx.message.add_reaction(strings.emoji_cancel)
-            msg = strings.get("error_username_invalid")
+            msg = strings.get("error_username_invalid").format(
+                username,
+                e.status,
+                e.code,
+                e.text or strings.get("error_no_info")
+            )
         finally:
             if msg:
                 await ctx.reply(content=msg)

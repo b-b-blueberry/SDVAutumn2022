@@ -97,7 +97,8 @@
   "error_params_not_expected": "Couldn't read those values! Here's the format:\n`{0}{1}`",
   "error_avatar_not_found": "Couldn't update avatar without an attached file.",
   "error_avatar_size": "Couldn't update avatar: file too large (maximum {0} MB).",
-  "error_username_invalid": "Couldn't update username: `{0}` doesn't fit name rules and restrictions.",
+  "error_username_invalid": "Couldn't update username: `{0}` may not fit name restrictions.\nError {1} (code {2}): {3}",
+  "error_no_info": "No further info.",
 
   "help_title": "Welcome to the SDV Summer event!",
   "help_content": "You can currently use these commands:\n\n{0}",
