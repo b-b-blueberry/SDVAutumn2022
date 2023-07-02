@@ -14,7 +14,7 @@ from typing import Optional, List, Any, Dict, Tuple, Union
 
 import discord.utils
 from discord import User, Message, Emoji, utils, Interaction, Role, Guild, ButtonStyle, Member, TextChannel, Embed, \
-    HTTPException, ui, File, Attachment, Colour
+    HTTPException, ui, File, Attachment, Colour, errors
 from discord.abc import GuildChannel
 from discord.ext import commands
 from discord.ext.commands import Cog, Context, UserConverter, BadArgument, CommandOnCooldown, Bot, \
@@ -850,7 +850,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             ctx.guild.get_role(role_data.get("id")).mention,
             role_data.get("cost")
         ) for role_data in config.SHOP_ROLE_LIST])
-        msg: str
+        msg: str = None
         shop_title: str = strings.get("message_shop_title").format(strings.emoji_shop)
         shop_body: str = strings.get("message_shop_body").format(msg_roles, emoji)
 
@@ -862,23 +862,30 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         embed.set_thumbnail(url=emoji.url)
         view: View = SCommands.SShopView(guild=ctx.guild, bot=self.bot)
         channel: TextChannel = self.bot.get_channel(config.CHANNEL_SHOP)
-        message: Message
+        message: Message = None
 
         # Send or edit shop message
-        if guild_entry.shop_message_id:
-            message = await channel.get_partial_message(guild_entry.shop_message_id).edit(content=None, embed=embed, view=view)
-            msg = strings.get("commands_response_edit_success").format(
-                message.channel.mention,
-                message.jump_url)
-        else:
-            message = await channel.send(content=None, embed=embed, view=view)
-            msg = strings.get("commands_response_send_success").format(
-                channel.mention,
-                message.jump_url)
+        try:
+            if guild_entry.shop_message_id:
+                # Edit existing shop message
+                message = await channel.get_partial_message(guild_entry.shop_message_id).edit(content=None, embed=embed, view=view)
+                msg = strings.get("commands_response_edit_success").format(
+                    message.channel.mention,
+                    message.jump_url)
+        except errors.NotFound:
+            # Swallow errors on missing shop message
+            pass
+        finally:
+            if not message:
+                # Create new shop message
+                message = await channel.send(content=None, embed=embed, view=view)
+                msg = strings.get("commands_response_send_success").format(
+                    channel.mention,
+                    message.jump_url)
 
-            # Update guild entry with shop message ID
-            guild_entry.shop_message_id = message.id
-            db.update_guild(entry=guild_entry)
+        # Update guild entry with shop message ID
+        guild_entry.shop_message_id = message.id if message else None
+        db.update_guild(entry=guild_entry)
 
         return msg
 
