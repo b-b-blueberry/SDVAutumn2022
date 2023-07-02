@@ -364,7 +364,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         msg: str
         emoji: Emoji = utils.get(self.bot.emojis, name=strings.get("emoji_shop"))
         guild_entry: db.DBGuild = db.get_guild(guild_id=ctx.guild.id)
-        if not value:
+        if value is None:
             # Omitting value will get current earnings
             msg = strings.get("commands_response_earnings_get").format(
                 guild_entry.earnings,
