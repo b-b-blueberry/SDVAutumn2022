@@ -72,7 +72,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                     row=int(i / SCommands.SShopView.ROW_LEN),
                     label=strings.get("shop_role_format").format(role.name, role_data.get("cost")),
                     custom_id=role_data.get("name"),
-                    emoji=utils.get(bot.emojis, name=strings.get(f"emoji_{role_data.get('name')}")))
+                    emoji=utils.get(bot.emojis, name=strings.get(f"emoji_hat_{role_data.get('name')}")))
                 self.add_item(item=button)
 
         async def interaction_check(self, interaction: Interaction, /) -> bool:
