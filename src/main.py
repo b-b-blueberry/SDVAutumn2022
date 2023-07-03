@@ -120,7 +120,9 @@ class SBot(commands.Bot):
             command_prefix=COMMAND_PREFIX,
             intents=DISCORD_INTENTS,
             description=strings.get("client_description"),
-            allowed_mentions=AllowedMentions.none())
+            allowed_mentions=AllowedMentions.none(),
+            case_insensitive=True
+        )
         self.help_command = self.SHelpCommand()
 
         self.db = db
