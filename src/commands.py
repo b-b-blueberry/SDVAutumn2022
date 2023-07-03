@@ -218,13 +218,14 @@ class SCommands(Cog, name=config.COG_COMMANDS):
             user_entry: db.DBUser = db.get_user(user_id=self.submission_author.id)
             user_entry.picross_count += 1
             db.update_user(user_entry)
-            embed.description = strings.get("submission_verify_success").format(
-                embed.description,
-                interaction.user.mention,
-                self.submission_author.mention,
-                award_value,
-                _make_ordinal(user_entry.picross_count),
-                strings.emoji_confirm
+            embed.description = \
+                (f"{embed.description}\n\n" if embed.description else "") \
+                + strings.get("submission_verify_success").format(
+                    interaction.user.mention,
+                    self.submission_author.mention,
+                    award_value,
+                    _make_ordinal(user_entry.picross_count),
+                    strings.emoji_confirm
             )
             await self.view.fold_embed(interaction=interaction, embed=embed)
 
