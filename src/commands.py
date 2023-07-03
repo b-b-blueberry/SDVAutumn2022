@@ -806,6 +806,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         guild_entry: db.DBGuild = db.get_guild(guild_id=guild_id)
         user_from_entry: db.DBUser = db.get_user(user_id=user_from.id)
         user_to_entry: db.DBUser = db.get_user(user_id=user_to.id)
+        balance_starting: int = user_from_entry.balance
         balance_donated: int = min(user_from_entry.balance, value)
         is_negative: bool = balance_donated < 1
 
@@ -822,7 +823,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
         msg_balance_key: str = "balance_responses_too_low" if is_negative else "balance_responses_donated"
         msg: str = strings.random(msg_balance_key).format(
             balance_donated,
-            user_from_entry.balance,
+            balance_starting,
             user_to.mention,
             user_to_entry.balance)
         return SCommands.SResponse(msg=msg, value=value)
