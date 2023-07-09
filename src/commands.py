@@ -181,13 +181,46 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                     interaction.user.mention,
                     self.submission_author.mention,
                     strings.emoji_cancel
-            )
+                )
             await self.view.fold_embed(interaction=interaction, embed=embed)
 
             # Send rejection message in secret submission channel
             await self.submission_channel.send(content=strings.get("submission_verify_response").format(
                 self.submission_author.mention,
                 strings.emoji_cancel
+            ))
+
+    class SVerifySpecialButton(ui.Button):
+        def __init__(self, *, submission_author: User, submission_channel: TextChannel):
+            self.submission_channel: TextChannel = submission_channel
+            self.submission_author: User = submission_author
+
+            super().__init__(
+                style=ButtonStyle.primary,
+                emoji=strings.emoji_star
+            )
+
+        async def callback(self, interaction: Interaction):
+            # Update verify message
+            embed: Embed = interaction.message.embeds[0]
+            user_entry: db.DBUser = db.get_user(user_id=self.submission_author.id)
+            user_entry.picross_count += 1
+            db.update_user(user_entry)
+            embed.description = \
+                (f"{embed.description}\n\n" if embed.description else "") \
+                + strings.get("submission_verify_special").format(
+                    interaction.user.mention,
+                    self.submission_author.mention,
+                    interaction.guild.get_role(config.ROLE_PICROSS).mention,
+                    _make_ordinal(user_entry.picross_count),
+                    strings.emoji_star
+                )
+            await self.view.fold_embed(interaction=interaction, embed=embed)
+
+            # Send confirmation message in secret submission channel
+            await self.submission_channel.send(content=strings.get("submission_verify_response").format(
+                self.submission_author.mention,
+                strings.emoji_star
             ))
 
     class SVerifyButton(ui.Button):
@@ -226,7 +259,7 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                     award_value,
                     _make_ordinal(user_entry.picross_count),
                     strings.emoji_confirm
-            )
+                )
             await self.view.fold_embed(interaction=interaction, embed=embed)
 
             # Send confirmation message in secret submission channel
@@ -250,6 +283,9 @@ class SCommands(Cog, name=config.COG_COMMANDS):
                     award_index=entry["response_index"],
                     submission_author=submission_author,
                     submission_channel=submission_channel))
+            self.add_item(SCommands.SVerifySpecialButton(
+                submission_author=submission_author,
+                submission_channel=submission_channel))
             self.add_item(SCommands.SVerifyRejectButton(
                 submission_author=submission_author,
                 submission_channel=submission_channel))

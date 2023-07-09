@@ -287,6 +287,7 @@
   "submission_verify_response": "{1} {0}",
   "submission_verify_title": "{0} posted in #{1}",
   "submission_verify_success": "{4} {0} awarded {1} \uD83E\uDE99 **{2}** Coines for their **{3}** Picross puzzle.",
+  "submission_verify_special": "{4} {0} accepted {1}'s **extreme-level** submission. This is their **{3}** Picross puzzle. If they have completed **all** puzzles, they can be given the {2} role.",
   "submission_verify_cancel": "{2} {0} rejected {1}'s submission.",
   "submission_verify_confirmation_responses": [
     "{2} {1} was awarded \uD83E\uDE99 **{0}** Coines.",

@@ -66,6 +66,7 @@ COMMAND_PREFIX: str = cfg["command_prefix"]
 """Prefix required for all messages sent in command channel."""
 
 ROLE_EVENT: int = cfg["roles"]["event"]
+ROLE_PICROSS: int = cfg["roles"]["picross"]
 ROLE_HELPER: int = cfg["roles"]["helper"]
 ROLE_ADMIN: int = cfg["roles"]["admin"]
 """Discord role ID for commands and features requiring admin privileges."""
